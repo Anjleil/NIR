@@ -9,29 +9,75 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
 public class GridVisualizer extends JPanel {
-    private final Point A;
-    private final Point B;
+    private Point A;
+    private Point B;
     private final List<NoFlyZone> noFlyZones;
     private final Set<Envelope> gridCells;
-
     private final double scale; // Масштаб отображения
-    private final List<Point> path;
+    private List<Point> path;
 
-    public GridVisualizer(Point A, Point B, List<NoFlyZone> noFlyZones, Set<Envelope> gridCells) {
+    private final GeometryFactory factory;
+    private final AdaptiveGrid grid;
+
+    public GridVisualizer(Point A, Point B, List<NoFlyZone> noFlyZones, Set<Envelope> gridCells, GeometryFactory factory, AdaptiveGrid grid) {
         this.A = A;
         this.B = B;
         this.noFlyZones = noFlyZones;
         this.gridCells = gridCells;
         this.scale = 20000; // Чем выше значение, тем крупнее масштаб
-        setPreferredSize(new Dimension(800, 800)); // Размер окна// Построение маршрута
+        this.factory = factory;
+        this.grid = grid;
+
+        setPreferredSize(new Dimension(800, 800)); // Размер окна
+
+        updatePath(); // Инициализируем первый путь
+    }
+
+    private void updatePath() {
         PathFinder pathFinder = new PathFinder(gridCells, A, B, noFlyZones);
         this.path = pathFinder.findPath();
+        repaint(); // Перерисовываем панель
+    }
 
+    public void updatePoints() {
+        // Генерируем новые случайные точки
+        this.A = factory.createPoint(new Coordinate(
+                37.637326,
+                55.763979
+        ));
+
+        this.B = factory.createPoint(new Coordinate(
+                37.637326 - Math.random() / 30 + Math.random() / 30,
+                55.763979 - Math.random() / 30 + Math.random() / 30
+        ));
+
+        while (isInsideNoFlyZone(this.B)){
+            this.B = factory.createPoint(new Coordinate(
+                    37.637326 - Math.random() / 30 + Math.random() / 30,
+                    55.763979 - Math.random() / 30 + Math.random() / 30
+            ));
+        }
+
+        // Обновляем сетку вокруг новой точки A
+//        gridCells.clear();
+//        gridCells.addAll(grid.createGridAroundPoint(A, 10000, noFlyZones));
+
+        // Строим новый маршрут
+        updatePath();
+    }
+
+    private boolean isInsideNoFlyZone(Point point) {
+        for (NoFlyZone zone : noFlyZones) {
+            if (zone.getBoundaryPolygon().contains(point)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -88,11 +134,11 @@ public class GridVisualizer extends JPanel {
             g2d.setColor(Color.ORANGE);
             Path2D route = new Path2D.Double();
             Point first = path.get(0);
-            route.moveTo(transformX(first.getX(), getWidth() / 2), transformY(first.getY(), getHeight() / 2));
+            route.moveTo(transformX(first.getX(), centerX), transformY(first.getY(), centerY));
 
             for (int i = 1; i < path.size(); i++) {
                 Point p = path.get(i);
-                route.lineTo(transformX(p.getX(), getWidth() / 2), transformY(p.getY(), getHeight() / 2));
+                route.lineTo(transformX(p.getX(), centerX), transformY(p.getY(), centerY));
             }
             g2d.draw(route);
         }
@@ -115,37 +161,34 @@ public class GridVisualizer extends JPanel {
     public static void main(String[] args) {
         GeometryFactory factory = new GeometryFactory();
 
+        // Начальные точки
         Point A = factory.createPoint(new Coordinate(37.637326, 55.763979));
-        Point B = factory.createPoint(new Coordinate(37.645, 55.765));
+        Point B = factory.createPoint(new Coordinate(37.637, 55.763));
 
-        List<NoFlyZone> noFlyZones = new ArrayList<>();
-        List<Coordinate> zone1Points = List.of(
-                new Coordinate(37.635, 55.760),
-                new Coordinate(37.640, 55.765),
-                new Coordinate(37.645, 55.760),
-                new Coordinate(37.635, 55.760)
-        );
-        noFlyZones.add(new NoFlyZone(zone1Points, factory));
+        NoFlyZoneLoader loader = new NoFlyZoneLoader(factory);
+        List<NoFlyZone> noFlyZones;
 
-        List<Coordinate> zone2Points = List.of(
-                new Coordinate(37.630, 55.770),
-                new Coordinate(37.635, 55.770),
-                new Coordinate(37.635, 55.765),
-                new Coordinate(37.630, 55.765),
-                new Coordinate(37.630, 55.770)
-        );
-        noFlyZones.add(new NoFlyZone(zone2Points, factory));
+        try {
+            noFlyZones = loader.loadNoFlyZones("src/main/resources/no_fly_zones.json");
+        } catch (IOException e) {
+            System.err.println("Failed to load no-fly zones: " + e.getMessage());
+            return;
+        }
 
         AdaptiveGrid grid = new AdaptiveGrid();
         Set<Envelope> gridCells = grid.createGridAroundPoint(A, 10000, noFlyZones);
-        System.out.println("Generated cells: " + gridCells.size());
 
         JFrame frame = new JFrame("Grid Visualizer");
-        GridVisualizer visualizer = new GridVisualizer(A, B, noFlyZones, gridCells);
+        GridVisualizer visualizer = new GridVisualizer(A, B, noFlyZones, gridCells, factory, grid);
+
         frame.add(visualizer);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.pack();
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+
+        // Таймер для обновления каждые 2 секунды
+        Timer timer = new Timer(2000, e -> visualizer.updatePoints());
+        timer.start();
     }
 }

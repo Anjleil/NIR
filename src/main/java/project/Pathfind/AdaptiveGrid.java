@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Set;
 class AdaptiveGrid {
     private final GeometryFactory geometryFactory = new GeometryFactory();
-    private final double baseResolution = 400; // Начальный размер ячейки в метрах
+    private final double baseResolution = 200; // Начальный размер ячейки в метрах
     private final double maxDetailResolution = 50; // Максимальная детализация 10 м
 
     public Set<Envelope> createGridAroundPoint(Point base, double radius, List<NoFlyZone> noFlyZones) {

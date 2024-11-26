@@ -5,13 +5,11 @@ import org.locationtech.jts.geom.*;
 import java.util.*;
 
 public class PathFinder {
-    private final Map<Point, List<Point>> graph;
     private final Set<Envelope> gridCells;
+    private final GeometryFactory geometryFactory;
     private final Point start;
     private final Point goal;
     private final List<NoFlyZone> noFlyZones;
-    private final GeometryFactory geometryFactory;
-
 
     public PathFinder(Set<Envelope> gridCells, Point start, Point goal, List<NoFlyZone> noFlyZones) {
         this.geometryFactory = new GeometryFactory();
@@ -19,34 +17,6 @@ public class PathFinder {
         this.start = start;
         this.goal = goal;
         this.noFlyZones = noFlyZones;
-        // Собираем узлы
-        List<Point> nodes = collectNodes(gridCells, start, goal, noFlyZones);
-
-        // Строим граф
-        this.graph = buildGraph(nodes);
-    }
-
-    private List<Point> collectNodes(Set<Envelope> gridCells, Point start, Point goal, List<NoFlyZone> noFlyZones) {
-        List<Point> nodes = new ArrayList<>();
-
-        // Добавляем узлы сетки
-        for (Envelope cell : gridCells) {
-            nodes.add(geometryFactory.createPoint(new Coordinate(cell.getMinX(), cell.getMinY())));
-        }
-
-        // Добавляем начальную и конечную точки
-        nodes.add(start);
-        nodes.add(goal);
-
-        // Добавляем точки на границах бесполетных зон
-        for (NoFlyZone zone : noFlyZones) {
-            Coordinate[] coordinates = zone.getBoundaryPolygon().getCoordinates();
-            for (Coordinate coord : coordinates) {
-                nodes.add(geometryFactory.createPoint(coord));
-            }
-        }
-
-        return nodes;
     }
 
     public List<Point> findPath() {
@@ -66,6 +36,13 @@ public class PathFinder {
             Point node = new GeometryFactory().createPoint(new Coordinate(cell.getMinX(), cell.getMinY()));
             if (!isInsideNoFlyZone(node)) {
                 nodes.add(node);
+            }
+        }
+
+        for (NoFlyZone zone : noFlyZones) {
+            Coordinate[] coordinates = zone.getBoundaryPolygon().getCoordinates();
+            for (Coordinate coord : coordinates) {
+                nodes.add(geometryFactory.createPoint(coord));
             }
         }
         return nodes;
@@ -91,7 +68,7 @@ public class PathFinder {
         for (Point node1 : nodes) {
             List<Point> neighbors = new ArrayList<>();
             for (Point node2 : nodes) {
-                if (!node1.equals(node2) && node1.distance(node2) <= maxDistance) {
+                if (!node1.equals(node2) && node1.distance(node2) <= maxDistance && isEdgeValid(node1, node2)) {
                     neighbors.add(node2);
                 }
             }
@@ -108,6 +85,19 @@ public class PathFinder {
             }
         }
         return false;
+    }
+
+    private boolean isEdgeValid(Point node1, Point node2) {
+        LineString edge = geometryFactory.createLineString(new Coordinate[]{
+                node1.getCoordinate(), node2.getCoordinate()
+        });
+
+        for (NoFlyZone zone : noFlyZones) {
+            if (edge.intersects(zone.getBoundaryPolygon())) {
+                return false; // Если ребро пересекает бесполетную зону
+            }
+        }
+        return true; // Ребро безопасно
     }
 
     private List<Point> aStar(Map<Point, List<Point>> graph, Point start, Point goal) {
@@ -148,20 +138,6 @@ public class PathFinder {
     private double heuristic(Point p1, Point p2) {
         return p1.distance(p2); // Евклидово расстояние
     }
-
-    private boolean isEdgeValid(Point node1, Point node2) {
-        LineString edge = geometryFactory.createLineString(new Coordinate[]{
-                node1.getCoordinate(), node2.getCoordinate()
-        });
-
-        for (NoFlyZone zone : noFlyZones) {
-            if (edge.intersects(zone.getBoundaryPolygon())) {
-                return false; // Ребро пересекает бесполетную зону
-            }
-        }
-        return true; // Ребро безопасно
-    }
-
 
     private List<Point> reconstructPath(Node node) {
         List<Point> path = new ArrayList<>();
