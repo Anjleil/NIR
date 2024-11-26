@@ -3,7 +3,7 @@ package project.NIR.Models.Routes;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import project.NIR.Models.GeographicalPoint;
+import org.jxmapviewer.viewer.GeoPosition;
 
 import java.util.List;
 
@@ -11,15 +11,12 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public abstract class Route {
-    protected List<GeographicalPoint> waypoints;
+    protected List<GeoPosition> waypoints;
+    public void addWaypoint(GeoPosition waypoint) {
+        this.waypoints.add(waypoint);
+    }
 
-    // Абстрактный метод для добавления точки в маршрут
-    public abstract void addWaypoint(GeographicalPoint waypoint);
-
-    // Абстрактный метод для отображения информации о маршруте
     public abstract void displayRouteInfo();
 
-    // Другие общие методы для всех маршрутов
-    // ...
 }
 

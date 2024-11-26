@@ -4,9 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import project.NIR.Models.GeographicalPoint;
-
-import java.util.List;
+import org.jxmapviewer.viewer.GeoPosition;
 
 @EqualsAndHashCode(callSuper = true)
 @Data
@@ -15,12 +13,9 @@ import java.util.List;
 public class GroundRoute extends Route {
     private int maxSpeed;  // Максимальная скорость для наземного маршрута
 
-
-    // Реализация абстрактного метода для добавления точки в наземный маршрут
     @Override
-    public void addWaypoint(GeographicalPoint waypoint) {
-        // Логика добавления точки в наземный маршрут
-        // ...
+    public void addWaypoint(GeoPosition waypoint) {
+
     }
 
     // Реализация абстрактного метода для отображения информации о наземном маршруте
@@ -30,7 +25,5 @@ public class GroundRoute extends Route {
         // ...
     }
 
-    // Дополнительные методы и свойства для наземного маршрута
-    // ...
 }
 
