@@ -19,12 +19,19 @@ public class GridVisualizer extends JPanel {
     private final List<NoFlyZone> noFlyZones;
     private final Set<Envelope> gridCells;
 
+    private final double scale; // Масштаб отображения
+    private final List<Point> path;
+
     public GridVisualizer(Point A, Point B, List<NoFlyZone> noFlyZones, Set<Envelope> gridCells) {
         this.A = A;
         this.B = B;
         this.noFlyZones = noFlyZones;
         this.gridCells = gridCells;
-        setPreferredSize(new Dimension(800, 800)); // Размер окна
+        this.scale = 20000; // Чем выше значение, тем крупнее масштаб
+        setPreferredSize(new Dimension(800, 800)); // Размер окна// Построение маршрута
+        PathFinder pathFinder = new PathFinder(gridCells, A, B, noFlyZones);
+        this.path = pathFinder.findPath();
+
     }
 
     @Override
@@ -33,18 +40,17 @@ public class GridVisualizer extends JPanel {
         Graphics2D g2d = (Graphics2D) g;
         g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Масштаб для отображения (чтобы было наглядно)
-        double scale = 40000; // Чем выше значение, тем меньше отображаемый участок
-
-        // Центр окна для базовой точки
+        // Центр окна
         int centerX = getWidth() / 2;
         int centerY = getHeight() / 2;
 
-        // Отображаем точку базы
+        // Отображаем точку A (центр карты)
         g2d.setColor(Color.RED);
-        double baseX = centerX + (A.getX() - A.getX()) * scale;
-        double baseY = centerY - (A.getY() - A.getY()) * scale;
-        g2d.fill(new Ellipse2D.Double(centerX, centerY, 10, 10)); // Точка базы (крупная точка)
+        drawPoint(g2d, A.getX(), A.getY(), centerX, centerY, 10);
+
+        // Отображаем точку B
+        g2d.setColor(Color.GREEN);
+        drawPoint(g2d, B.getX(), B.getY(), centerX, centerY, 10);
 
         // Отображаем бесполетные зоны
         g2d.setColor(Color.BLUE);
@@ -52,13 +58,13 @@ public class GridVisualizer extends JPanel {
             Path2D polygon = new Path2D.Double();
             Coordinate[] coordinates = zone.getBoundaryPolygon().getCoordinates();
             if (coordinates.length > 0) {
-                double startX = centerX + (coordinates[0].x - A.getX()) * scale;
-                double startY = centerY - (coordinates[0].y - A.getY()) * scale;
+                double startX = transformX(coordinates[0].x, centerX);
+                double startY = transformY(coordinates[0].y, centerY);
                 polygon.moveTo(startX, startY);
 
                 for (int i = 1; i < coordinates.length; i++) {
-                    double x = centerX + (coordinates[i].x - A.getX()) * scale;
-                    double y = centerY - (coordinates[i].y - A.getY()) * scale;
+                    double x = transformX(coordinates[i].x, centerX);
+                    double y = transformY(coordinates[i].y, centerY);
                     polygon.lineTo(x, y);
                 }
                 polygon.closePath();
@@ -69,23 +75,48 @@ public class GridVisualizer extends JPanel {
         // Отображаем узлы сетки
         g2d.setColor(Color.GRAY);
         for (Envelope cell : gridCells) {
-            double nodeX = centerX + (cell.getMinX() - A.getX()) * scale;
-            double nodeY = centerY - (cell.getMinY() - A.getY()) * scale;
+            double cellX = transformX(cell.getMinX(), centerX);
+            double cellY = transformY(cell.getMinY(), centerY);
 
             // Размер точек узлов сетки
             double pointSize = 3;
-            g2d.fill(new Ellipse2D.Double(nodeX - pointSize / 2, nodeY - pointSize / 2, pointSize, pointSize));
+            g2d.fill(new Ellipse2D.Double(cellX - pointSize / 2, cellY - pointSize / 2, pointSize, pointSize));
         }
-        g2d.setColor(Color.GREEN);
-        g2d.fill(new Ellipse2D.Double(B.getX()-5, B.getY()-5, 10, 10));
+
+        // Отображение маршрута
+        if (path != null && !path.isEmpty()) {
+            g2d.setColor(Color.ORANGE);
+            Path2D route = new Path2D.Double();
+            Point first = path.get(0);
+            route.moveTo(transformX(first.getX(), getWidth() / 2), transformY(first.getY(), getHeight() / 2));
+
+            for (int i = 1; i < path.size(); i++) {
+                Point p = path.get(i);
+                route.lineTo(transformX(p.getX(), getWidth() / 2), transformY(p.getY(), getHeight() / 2));
+            }
+            g2d.draw(route);
+        }
+    }
+
+    private double transformX(double longitude, int centerX) {
+        return centerX + (longitude - A.getX()) * scale;
+    }
+
+    private double transformY(double latitude, int centerY) {
+        return centerY - (latitude - A.getY()) * scale;
+    }
+
+    private void drawPoint(Graphics2D g2d, double longitude, double latitude, int centerX, int centerY, double size) {
+        double x = transformX(longitude, centerX);
+        double y = transformY(latitude, centerY);
+        g2d.fill(new Ellipse2D.Double(x - size / 2, y - size / 2, size, size));
     }
 
     public static void main(String[] args) {
         GeometryFactory factory = new GeometryFactory();
 
         Point A = factory.createPoint(new Coordinate(37.637326, 55.763979));
-
-        Point B = factory.createPoint(new Coordinate(37.637326, 55.763979));
+        Point B = factory.createPoint(new Coordinate(37.645, 55.765));
 
         List<NoFlyZone> noFlyZones = new ArrayList<>();
         List<Coordinate> zone1Points = List.of(
@@ -117,5 +148,4 @@ public class GridVisualizer extends JPanel {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
-
 }

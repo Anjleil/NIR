@@ -67,32 +67,6 @@ class AdaptiveGrid {
         return false;
     }
 
-    private boolean isInsideNoFlyZone(Envelope cell, List<NoFlyZone> noFlyZones) {
-        // Получаем координаты углов ячейки
-        Point[] corners = new Point[] {
-                geometryFactory.createPoint(new Coordinate(cell.getMinX(), cell.getMinY())),
-                geometryFactory.createPoint(new Coordinate(cell.getMinX(), cell.getMaxY())),
-                geometryFactory.createPoint(new Coordinate(cell.getMaxX(), cell.getMinY())),
-                geometryFactory.createPoint(new Coordinate(cell.getMaxX(), cell.getMaxY()))
-        };
-
-        // Определяем размер буфера, например, 10 метров
-        double bufferSize = 1;
-
-        // Проверяем каждый угол на вхождение в зону с буфером
-        for (NoFlyZone zone : noFlyZones) {
-            Geometry bufferedZone = zone.getBoundaryPolygon().buffer(bufferSize); // создаем буфер вокруг зоны
-            for (Point corner : corners) {
-                if (bufferedZone.intersects(corner)) {
-                    return true; // Если угол попадает в зону с буфером, исключаем ячейку
-                }
-            }
-        }
-        return false;
-    }
-
-
-
     // Перевод градусов в метры с учетом широты
     private double degreesPerMeterLat(double latitude) {
         double earthRadius = 6371000; // Радиус Земли в метрах
