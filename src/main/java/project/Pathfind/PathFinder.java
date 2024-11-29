@@ -10,6 +10,7 @@ public class PathFinder {
     private final Point start;
     private final Point goal;
     private final List<NoFlyZone> noFlyZones;
+    double maxDistance = 0.01; // Радиус соседства (примерно 500 м)
 
     public PathFinder(Set<Envelope> gridCells, Point start, Point goal, List<NoFlyZone> noFlyZones) {
         this.geometryFactory = new GeometryFactory();
@@ -26,31 +27,39 @@ public class PathFinder {
         // Карта рёбер графа
         Map<Point, List<Point>> graph = buildGraph(nodes);
 
+        List<Point> path = aStar(graph, start, goal);
+
+        if (path.isEmpty()) {
+//            throw new IllegalStateException("Cannot find path: " + start + ":" + goal);
+            System.out.println("Cannot find path: " + start + ":" + goal);
+        }
+
         // Реализация A*
-        return aStar(graph, start, goal);
+        return path;
     }
 
     private List<Point> getGridNodes() {
         List<Point> nodes = new ArrayList<>();
         for (Envelope cell : gridCells) {
-            Point node = new GeometryFactory().createPoint(new Coordinate(cell.getMinX(), cell.getMinY()));
+
+//            Point node = new GeometryFactory().createPoint(new Coordinate(cell.getMinX(), cell.getMinY()));
+            Point node = new GeometryFactory().createPoint(new Coordinate(cell.centre()));
             if (!isInsideNoFlyZone(node)) {
                 nodes.add(node);
             }
-        }
+}
 
-        for (NoFlyZone zone : noFlyZones) {
-            Coordinate[] coordinates = zone.getBoundaryPolygon().getCoordinates();
-            for (Coordinate coord : coordinates) {
-                nodes.add(geometryFactory.createPoint(coord));
-            }
-        }
+//        for (NoFlyZone zone : noFlyZones) {
+//            Coordinate[] coordinates = zone.getBoundaryPolygon().getCoordinates();
+//            for (Coordinate coord : coordinates) {
+//                nodes.add(geometryFactory.createPoint(coord));
+//            }
+//        }
         return nodes;
     }
 
     private Map<Point, List<Point>> buildGraph(List<Point> nodes) {
         Map<Point, List<Point>> graph = new HashMap<>();
-        double maxDistance = 0.005; // Радиус соседства (примерно 500 м)
 
         // Добавляем A и B в список узлов
         nodes.add(start);

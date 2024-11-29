@@ -18,8 +18,12 @@ public class GridVisualizer extends JPanel {
     private Point B;
     private final List<NoFlyZone> noFlyZones;
     private final Set<Envelope> gridCells;
-    private final double scale; // Масштаб отображения
+    private final double scale = 10000; // Масштаб отображения
+    private final static int radius = 5000;
     private List<Point> path;
+
+    private final double initialAX;
+    private final double initialAY;
 
     private final GeometryFactory factory;
     private final AdaptiveGrid grid;
@@ -29,13 +33,14 @@ public class GridVisualizer extends JPanel {
         this.B = B;
         this.noFlyZones = noFlyZones;
         this.gridCells = gridCells;
-        this.scale = 20000; // Чем выше значение, тем крупнее масштаб
         this.factory = factory;
         this.grid = grid;
 
-        setPreferredSize(new Dimension(800, 800)); // Размер окна
+        this.initialAX = A.getX();
+        this.initialAY = A.getY(); // Фиксируем начальные координаты A
 
-        updatePath(); // Инициализируем первый путь
+        setPreferredSize(new Dimension(1200, 1000));
+        updatePath();
     }
 
     private void updatePath() {
@@ -44,23 +49,31 @@ public class GridVisualizer extends JPanel {
         repaint(); // Перерисовываем панель
     }
 
-    public void updatePoints() {
-        // Генерируем новые случайные точки
+    private void randomizePointA(int dispersion){
         this.A = factory.createPoint(new Coordinate(
-                37.637326,
-                55.763979
+                37.637326 - Math.random() / dispersion + Math.random() / dispersion,
+                55.763979 - Math.random() / dispersion + Math.random() / dispersion
         ));
+    }
 
+    private void randomizePointB(int dispersion){
         this.B = factory.createPoint(new Coordinate(
-                37.637326 - Math.random() / 30 + Math.random() / 30,
-                55.763979 - Math.random() / 30 + Math.random() / 30
+                37.637326 - Math.random() / dispersion + Math.random() / dispersion,
+                55.763979 - Math.random() / dispersion + Math.random() / dispersion
         ));
+    }
 
+    public void updatePoints() {
+        int dispersion = 15;
+        // Генерируем новые случайные точки
+        randomizePointA(dispersion);
+        randomizePointB(dispersion);
+
+        while (isInsideNoFlyZone(this.A)){
+            randomizePointA(dispersion);
+        }
         while (isInsideNoFlyZone(this.B)){
-            this.B = factory.createPoint(new Coordinate(
-                    37.637326 - Math.random() / 30 + Math.random() / 30,
-                    55.763979 - Math.random() / 30 + Math.random() / 30
-            ));
+            randomizePointB(dispersion);
         }
 
         // Обновляем сетку вокруг новой точки A
@@ -118,11 +131,34 @@ public class GridVisualizer extends JPanel {
             }
         }
 
+        // Отображаем бесполетные зоны
+        g2d.setColor(Color.BLUE);
+        for (NoFlyZone zone : noFlyZones) {
+            Path2D polygon = new Path2D.Double();
+            Coordinate[] coordinates = zone.getBoundaryPolygon().buffer(0.002).getCoordinates();
+            if (coordinates.length > 0) {
+                double startX = transformX(coordinates[0].x, centerX);
+                double startY = transformY(coordinates[0].y, centerY);
+                polygon.moveTo(startX, startY);
+
+                for (int i = 1; i < coordinates.length; i++) {
+                    double x = transformX(coordinates[i].x, centerX);
+                    double y = transformY(coordinates[i].y, centerY);
+                    polygon.lineTo(x, y);
+                }
+                polygon.closePath();
+                g2d.draw(polygon);
+            }
+        }
+
         // Отображаем узлы сетки
         g2d.setColor(Color.GRAY);
         for (Envelope cell : gridCells) {
-            double cellX = transformX(cell.getMinX(), centerX);
-            double cellY = transformY(cell.getMinY(), centerY);
+//            double cellX = transformX(cell.getMinX(), centerX);
+//            double cellY = transformY(cell.getMinY(), centerY);
+
+            double cellX = transformX(cell.centre().getX(), centerX);
+            double cellY = transformY(cell.centre().getY(), centerY);
 
             // Размер точек узлов сетки
             double pointSize = 3;
@@ -145,12 +181,13 @@ public class GridVisualizer extends JPanel {
     }
 
     private double transformX(double longitude, int centerX) {
-        return centerX + (longitude - A.getX()) * scale;
+        return centerX + (longitude - initialAX) * scale; // Используем initialAX
     }
 
     private double transformY(double latitude, int centerY) {
-        return centerY - (latitude - A.getY()) * scale;
+        return centerY - (latitude - initialAY) * scale; // Используем initialAY
     }
+
 
     private void drawPoint(Graphics2D g2d, double longitude, double latitude, int centerX, int centerY, double size) {
         double x = transformX(longitude, centerX);
@@ -176,7 +213,8 @@ public class GridVisualizer extends JPanel {
         }
 
         AdaptiveGrid grid = new AdaptiveGrid();
-        Set<Envelope> gridCells = grid.createGridAroundPoint(A, 10000, noFlyZones);
+//        Set<Envelope> gridCells = grid.createRadialGrid(A, 10000, noFlyZones);
+        Set<Envelope> gridCells = grid.createGridAroundPoint(A, radius, noFlyZones);
 
         JFrame frame = new JFrame("Grid Visualizer");
         GridVisualizer visualizer = new GridVisualizer(A, B, noFlyZones, gridCells, factory, grid);
