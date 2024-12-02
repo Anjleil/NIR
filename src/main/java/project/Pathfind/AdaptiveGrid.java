@@ -36,64 +36,6 @@ class AdaptiveGrid {
         return cells;
     }
 
-    public Set<Envelope> createRadialGrid(Point base, double radius, List<NoFlyZone> noFlyZones) {
-        Set<Envelope> cells = new HashSet<>();
-        double baseLat = base.getY();
-        double baseLon = base.getX();
-
-        double degreesPerMeterLat = 360 / (2 * Math.PI * 6371000); // Радиус Земли в метрах
-        double degreesPerMeterLon = degreesPerMeterLat / Math.cos(Math.toRadians(baseLat));
-
-        double currentRadius = 0; // Текущий радиус построения
-        while (currentRadius <= radius) {
-            double resolution = calculateResolution(currentRadius, noFlyZones, base, degreesPerMeterLat, degreesPerMeterLon);
-            createCircle(baseLat, baseLon, currentRadius, resolution, degreesPerMeterLat, degreesPerMeterLon, cells, noFlyZones, 1);
-            currentRadius += 300; // Увеличиваем радиус с шагом
-        }
-        return cells;
-    }
-
-    private void createCircle(double baseLat, double baseLon, double radius, double resolution,
-                              double degreesPerMeterLat, double degreesPerMeterLon,
-                              Set<Envelope> cells, List<NoFlyZone> noFlyZones, int step) {
-        int points = (int) Math.ceil(2 * Math.PI * radius / resolution); // Количество точек на круге
-        double angleStep = 2 * Math.PI / points;
-
-        for (int i = 0; i < points; i++) {
-            double angle = i * angleStep;
-            double lat = baseLat + radius * degreesPerMeterLat * Math.sin(angle);
-            double lon = baseLon + radius * degreesPerMeterLon * Math.cos(angle);
-
-            Envelope cell = new Envelope(lon - resolution * degreesPerMeterLon / step, lon + resolution * degreesPerMeterLon / step,
-                    lat - resolution * degreesPerMeterLat / step, lat + resolution * degreesPerMeterLat/ step);
-
-            while (shouldRefineWithBuffer(cell, noFlyZones, 0) && step < 2)
-            {
-                step+=1;
-                createCircle(baseLat, baseLon, radius, resolution / step, degreesPerMeterLat, degreesPerMeterLon, cells, noFlyZones, step);
-                cells.add(cell);
-            }
-
-            if (step <= 2)
-                cells.add(cell);
-        }
-    }
-
-    private double calculateResolution(double currentRadius, List<NoFlyZone> noFlyZones, Point base,
-                                       double degreesPerMeterLat, double degreesPerMeterLon) {
-        // Базовый шаг
-        double resolution = 500;
-
-//        for (NoFlyZone zone : noFlyZones) {
-//            if (zone.distance(base) <= currentRadius) {
-//                // Если в пределах текущего радиуса, уменьшаем шаг для повышения детализации
-//                resolution = Math.max(maxDetailResolution, resolution / 2);
-//            }
-//        }
-
-        return resolution;
-    }
-
     private void createCells(double minLat, double maxLat, double minLon, double maxLon,
                              double resolution, Set<Envelope> cells, List<NoFlyZone> noFlyZones) {
         for (double lat = minLat; lat <= maxLat; lat += resolution * degreesPerMeterLat(lat)) {
@@ -109,7 +51,7 @@ class AdaptiveGrid {
                         // Делим текущую ячейку на более мелкие
                         createCells(
                                 cell.getMinY(), cell.getMaxY(), cell.getMinX(), cell.getMaxX(),
-                                Math.max(resolution / 5, maxDetailResolution), cells, noFlyZones
+                                Math.max(resolution / 10, maxDetailResolution), cells, noFlyZones
                         );
                     }
                 } else{
@@ -117,7 +59,7 @@ class AdaptiveGrid {
                         if (resolution > maxDetailResolution) {
                             createCells(
                                     cell.getMinY(), cell.getMaxY(), cell.getMinX(), cell.getMaxX(),
-                                    Math.max(resolution / 5, maxDetailResolution), cells, noFlyZones
+                                    resolution / 5, cells, noFlyZones
                             );
                         }
                     }
@@ -139,17 +81,6 @@ class AdaptiveGrid {
         }
         return false;
     }
-
-    private boolean shouldRefine(Envelope cell, List<NoFlyZone> noFlyZones) {
-        Geometry geometry = geometryFactory.toGeometry(cell);
-        for (NoFlyZone zone : noFlyZones) {
-            if (zone.intersects(geometry)) {
-                return true; // Если зона пересекает ячейку или её "буфер"
-            }
-        }
-        return false;
-    }
-
 
     // Перевод градусов в метры с учетом широты
     private double degreesPerMeterLat(double latitude) {

@@ -1,5 +1,6 @@
 package project.Pathfind;
 
+import lombok.Data;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
@@ -19,22 +20,96 @@ public class GridVisualizer extends JPanel {
     private final List<NoFlyZone> noFlyZones;
     private final Set<Envelope> gridCells;
     private final double scale = 10000; // Масштаб отображения
-    private final static int radius = 5000;
-    private List<Point> path;
+    private final static int radius = 6000;
 
     private final double initialAX;
     private final double initialAY;
-
     private final GeometryFactory factory;
-    private final AdaptiveGrid grid;
+    private Path path;
 
-    public GridVisualizer(Point A, Point B, List<NoFlyZone> noFlyZones, Set<Envelope> gridCells, GeometryFactory factory, AdaptiveGrid grid) {
+    @Data
+    public class Path {
+        private List<Point> points;
+        private double distance;
+
+        private double calculatePathLength() {
+            double totalLength = 0;
+
+            for (int i = 0; i < points.size() - 1; i++) {
+                Point current = points.get(i);
+                Point next = points.get(i + 1);
+
+                // Расстояние в метрах с учетом разницы в градусах широты и долготы
+                double distance = calculateDistanceInMeters(
+                        current.getY(), current.getX(),
+                        next.getY(), next.getX()
+                );
+                totalLength += distance;
+            }
+
+            return totalLength;
+        }
+
+
+        @Override
+        public String toString() {
+            return "PathResult{" +
+                    "path=" + points.get(0) +
+                    ", distance=" + calculatePathLength() + " meters" +
+                    '}';
+        }
+
+        private double calculateDistanceInMeters(double lat1, double lon1, double lat2, double lon2) {
+            // Перевод широты и долготы из градусов в метры
+            double degreesPerMeterLat = degreesPerMeterLat(lat1);
+            double degreesPerMeterLon = degreesPerMeterLon(lat1);
+
+            // Разница в градусах
+            double deltaLat = Math.abs(lat2 - lat1);
+            double deltaLon = Math.abs(lon2 - lon1);
+
+            // Расстояние по широте и долготе в метрах
+            double distanceLat = deltaLat / degreesPerMeterLat;
+            double distanceLon = deltaLon / degreesPerMeterLon;
+
+            // Гипотенуза (теорема Пифагора)
+            return Math.sqrt(distanceLat * distanceLat + distanceLon * distanceLon);
+        }
+
+
+        private double degreesPerMeterLat(double latitude) {
+            double earthRadius = 6371000; // Радиус Земли в метрах
+            return 360 / (2 * Math.PI * earthRadius); // Перевод метров в градусы
+        }
+
+        private double degreesPerMeterLon(double latitude) {
+            double earthRadius = 6371000; // Радиус Земли в метрах
+            double degreesPerMeterLat = 360 / (2 * Math.PI * earthRadius); // Перевод метров в градусы
+            return degreesPerMeterLat / Math.cos(Math.toRadians(latitude));
+        }
+
+        public boolean isEmpty() {
+            return points.isEmpty();
+        }
+
+        public Point get(int i) {
+            return points.get(i);
+        }
+
+        public int size() {
+            return points.size();
+        }
+    }
+
+
+
+
+    public GridVisualizer(Point A, Point B, List<NoFlyZone> noFlyZones, Set<Envelope> gridCells, GeometryFactory factory) {
         this.A = A;
         this.B = B;
         this.noFlyZones = noFlyZones;
         this.gridCells = gridCells;
         this.factory = factory;
-        this.grid = grid;
 
         this.initialAX = A.getX();
         this.initialAY = A.getY(); // Фиксируем начальные координаты A
@@ -45,7 +120,12 @@ public class GridVisualizer extends JPanel {
 
     private void updatePath() {
         PathFinder pathFinder = new PathFinder(gridCells, A, B, noFlyZones);
-        this.path = pathFinder.findPath();
+
+        this.path = new Path();
+        this.path.setPoints(pathFinder.findPath());
+
+        System.out.println(path.toString());
+
         repaint(); // Перерисовываем панель
     }
 
@@ -116,39 +196,15 @@ public class GridVisualizer extends JPanel {
         for (NoFlyZone zone : noFlyZones) {
             Path2D polygon = new Path2D.Double();
             Coordinate[] coordinates = zone.getBoundaryPolygon().getCoordinates();
-            if (coordinates.length > 0) {
-                double startX = transformX(coordinates[0].x, centerX);
-                double startY = transformY(coordinates[0].y, centerY);
-                polygon.moveTo(startX, startY);
-
-                for (int i = 1; i < coordinates.length; i++) {
-                    double x = transformX(coordinates[i].x, centerX);
-                    double y = transformY(coordinates[i].y, centerY);
-                    polygon.lineTo(x, y);
-                }
-                polygon.closePath();
-                g2d.draw(polygon);
-            }
+            drawPoints(g2d, centerX, centerY, polygon, coordinates);
         }
 
-        // Отображаем бесполетные зоны
+        // Отображаем буффер бесполетных зон
         g2d.setColor(Color.BLUE);
         for (NoFlyZone zone : noFlyZones) {
             Path2D polygon = new Path2D.Double();
             Coordinate[] coordinates = zone.getBoundaryPolygon().buffer(0.002).getCoordinates();
-            if (coordinates.length > 0) {
-                double startX = transformX(coordinates[0].x, centerX);
-                double startY = transformY(coordinates[0].y, centerY);
-                polygon.moveTo(startX, startY);
-
-                for (int i = 1; i < coordinates.length; i++) {
-                    double x = transformX(coordinates[i].x, centerX);
-                    double y = transformY(coordinates[i].y, centerY);
-                    polygon.lineTo(x, y);
-                }
-                polygon.closePath();
-                g2d.draw(polygon);
-            }
+            drawPoints(g2d, centerX, centerY, polygon, coordinates);
         }
 
         // Отображаем узлы сетки
@@ -177,6 +233,22 @@ public class GridVisualizer extends JPanel {
                 route.lineTo(transformX(p.getX(), centerX), transformY(p.getY(), centerY));
             }
             g2d.draw(route);
+        }
+    }
+
+    private void drawPoints(Graphics2D g2d, int centerX, int centerY, Path2D polygon, Coordinate[] coordinates) {
+        if (coordinates.length > 0) {
+            double startX = transformX(coordinates[0].x, centerX);
+            double startY = transformY(coordinates[0].y, centerY);
+            polygon.moveTo(startX, startY);
+
+            for (int i = 1; i < coordinates.length; i++) {
+                double x = transformX(coordinates[i].x, centerX);
+                double y = transformY(coordinates[i].y, centerY);
+                polygon.lineTo(x, y);
+            }
+            polygon.closePath();
+            g2d.draw(polygon);
         }
     }
 
@@ -217,7 +289,7 @@ public class GridVisualizer extends JPanel {
         Set<Envelope> gridCells = grid.createGridAroundPoint(A, radius, noFlyZones);
 
         JFrame frame = new JFrame("Grid Visualizer");
-        GridVisualizer visualizer = new GridVisualizer(A, B, noFlyZones, gridCells, factory, grid);
+        GridVisualizer visualizer = new GridVisualizer(A, B, noFlyZones, gridCells, factory);
 
         frame.add(visualizer);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

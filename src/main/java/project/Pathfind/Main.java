@@ -31,7 +31,7 @@ public class Main {
 
         // Создаем сетку вокруг базы
 ////        Set<Envelope> gridCells = grid.createRadialGrid(basePoint, 10000, noFlyZones);
-        Set<Envelope> gridCells = grid.createGridAroundPoint(basePoint, 1000, noFlyZones);
+        Set<Envelope> gridCells = grid.createGridAroundPoint(basePoint, 10000, noFlyZones);
 //        gridCells.addAll(gridCellsNormal);
 
         // Вывод информации о созданных ячейках
