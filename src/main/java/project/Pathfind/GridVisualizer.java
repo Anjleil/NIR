@@ -28,7 +28,7 @@ public class GridVisualizer extends JPanel {
     private Path path;
 
     @Data
-    public class Path {
+    public static class Path {
         private List<Point> points;
         private double distance;
 
@@ -53,10 +53,13 @@ public class GridVisualizer extends JPanel {
 
         @Override
         public String toString() {
-            return "PathResult{" +
-                    "path=" + points.get(0) +
-                    ", distance=" + calculatePathLength() + " meters" +
-                    '}';
+            if (!points.isEmpty()){
+                return "PathResult{" +
+                        "path=" + points.get(0) +
+                        ", distance=" + calculatePathLength() + " meters" +
+                        '}';
+            }
+            else return "No path";
         }
 
         private double calculateDistanceInMeters(double lat1, double lon1, double lat2, double lon2) {
@@ -272,7 +275,7 @@ public class GridVisualizer extends JPanel {
 
         // Начальные точки
         Point A = factory.createPoint(new Coordinate(37.637326, 55.763979));
-        Point B = factory.createPoint(new Coordinate(37.637, 55.763));
+        Point B = factory.createPoint(new Coordinate(37.697, 55.763));
 
         NoFlyZoneLoader loader = new NoFlyZoneLoader(factory);
         List<NoFlyZone> noFlyZones;

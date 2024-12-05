@@ -1,11 +1,13 @@
 package project.Pathfind;
 
+import lombok.Getter;
 import org.locationtech.jts.geom.*;
 
 import java.util.List;
 
+@Getter
 class NoFlyZone {
-    private Polygon boundaryPolygon;
+    private final Polygon boundaryPolygon;
 
     public NoFlyZone(List<Coordinate> boundaryPoints, GeometryFactory factory) {
         Coordinate[] coordinates = boundaryPoints.toArray(new Coordinate[0]);
@@ -20,7 +22,4 @@ class NoFlyZone {
         return boundaryPolygon.intersects(geometry);
     }
 
-    public Polygon getBoundaryPolygon() {
-        return boundaryPolygon;
-    }
 }
