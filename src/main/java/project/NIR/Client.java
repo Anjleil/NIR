@@ -51,7 +51,6 @@ public class Client {
     public static void main(String[] args) throws IOException {
         Client client = new Client(new GeoPosition(55.751425, 37.664654));
         client.connectToServer("localhost", 12345);
-//        client.run();
     }
 
     private ClientData createPackage(){
