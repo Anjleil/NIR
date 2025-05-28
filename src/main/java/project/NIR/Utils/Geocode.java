@@ -1,4 +1,4 @@
-package project.NIR;
+package project.NIR.Utils;
 
 import org.apache.http.client.fluent.Content;
 import org.apache.http.client.fluent.Request;

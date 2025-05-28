@@ -1,4 +1,4 @@
-package project.NIR;
+package project.NIR.Utils;
 
 import project.NIR.Models.Drones.AirDrone;
 
@@ -17,6 +17,6 @@ public class TestConnection {
     private static void CreateDrone(int id) throws IOException {
         AirDrone drone = new AirDrone(id); // идентификатор дрона
         drone.connectToServer("localhost", 12345); // подключаемся к серверу
-        drone.run(); // запускаем дрон
+//        drone.run(); // запускаем дрон
     }
 }

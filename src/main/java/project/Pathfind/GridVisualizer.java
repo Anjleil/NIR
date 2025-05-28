@@ -19,8 +19,9 @@ public class GridVisualizer extends JPanel {
     private Point B;
     private final List<NoFlyZone> noFlyZones;
     private final Set<Envelope> gridCells;
-    private final double scale = 10000; // Масштаб отображения
-    private final static int radius = 6000;
+    private final double scale = 2500; // Масштаб отображения
+    private final static int radius = 15000;
+    private final static double buffer = 0.003;
 
     private final double initialAX;
     private final double initialAY;
@@ -54,10 +55,15 @@ public class GridVisualizer extends JPanel {
         @Override
         public String toString() {
             if (!points.isEmpty()){
-                return "PathResult{" +
-                        "path=" + points.get(0) +
-                        ", distance=" + calculatePathLength() + " meters" +
-                        '}';
+                StringBuilder str = new StringBuilder();
+                str.append("PathResult{");
+
+                for (Point p : points){
+                    str.append("new GeoPosition(").append(p.getY()).append(", ").append(p.getX()).append("),");
+                }
+
+                str.append(", distance=" + calculatePathLength() + " meters" + '}');
+                return str.toString();
             }
             else return "No path";
         }
@@ -206,7 +212,7 @@ public class GridVisualizer extends JPanel {
         g2d.setColor(Color.BLUE);
         for (NoFlyZone zone : noFlyZones) {
             Path2D polygon = new Path2D.Double();
-            Coordinate[] coordinates = zone.getBoundaryPolygon().buffer(0.002).getCoordinates();
+            Coordinate[] coordinates = zone.getBoundaryPolygon().buffer(buffer).getCoordinates();
             drawPoints(g2d, centerX, centerY, polygon, coordinates);
         }
 
@@ -274,14 +280,14 @@ public class GridVisualizer extends JPanel {
         GeometryFactory factory = new GeometryFactory();
 
         // Начальные точки
-        Point A = factory.createPoint(new Coordinate(37.637326, 55.763979));
-        Point B = factory.createPoint(new Coordinate(37.697, 55.763));
+        Point A = factory.createPoint(new Coordinate(37.686005, 55.776536 ));
+        Point B = factory.createPoint(new Coordinate(37.699462, 55.714708 ));
 
         NoFlyZoneLoader loader = new NoFlyZoneLoader(factory);
         List<NoFlyZone> noFlyZones;
 
         try {
-            noFlyZones = loader.loadNoFlyZones("src/main/resources/no_fly_zones.json");
+            noFlyZones = loader.loadNoFlyZones("src/main/resources/no_fly_zones_moscow.json");
         } catch (IOException e) {
             System.err.println("Failed to load no-fly zones: " + e.getMessage());
             return;
@@ -302,6 +308,6 @@ public class GridVisualizer extends JPanel {
 
         // Таймер для обновления каждые 2 секунды
         Timer timer = new Timer(2000, e -> visualizer.updatePoints());
-        timer.start();
+//        timer.start();
     }
 }

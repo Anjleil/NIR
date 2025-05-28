@@ -1,4 +1,4 @@
-package project.NIR.Models;
+package project.NIR.Models.Data;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -8,8 +8,7 @@ import org.jxmapviewer.viewer.GeoPosition;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-public class ClientData extends ServerData {
-    private GeoPosition departure;
+public class ClientData extends Data {
     private GeoPosition delivery;
 
     @Override

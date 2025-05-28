@@ -7,12 +7,14 @@
  * and open the template in the editor.
  */
 
-package sample4_fancy;
+package project.NIR.JXMapViewer.Renderer;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jxmapviewer.JXMapViewer;
 import org.jxmapviewer.viewer.WaypointRenderer;
+import sample4_fancy.MultiplyComposite;
+import sample4_fancy.MyWaypoint;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -26,9 +28,9 @@ import java.util.Map;
  * A fancy waypoint painter
  * @author Martin Steiger
  */
-public class FancyWaypointRenderer implements WaypointRenderer<MyWaypoint>
+public class PointRenderer implements WaypointRenderer<MyWaypoint>
 {
-    private static final Log log = LogFactory.getLog(FancyWaypointRenderer.class);
+    private static final Log log = LogFactory.getLog(PointRenderer.class);
 
     private final Map<Color, BufferedImage> map = new HashMap<Color, BufferedImage>();
 
@@ -39,9 +41,9 @@ public class FancyWaypointRenderer implements WaypointRenderer<MyWaypoint>
     /**
      * Uses a default waypoint image
      */
-    public FancyWaypointRenderer()
+    public PointRenderer(String path)
     {
-        URL resource = getClass().getResource("drones.png");
+        URL resource = getClass().getResource(path);
 
         try
         {
@@ -49,7 +51,7 @@ public class FancyWaypointRenderer implements WaypointRenderer<MyWaypoint>
         }
         catch (Exception ex)
         {
-            log.warn("couldn't read waypoint_white.png", ex);
+            log.warn("couldn't read drones.png", ex);
         }
     }
 

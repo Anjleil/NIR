@@ -6,7 +6,7 @@ import org.locationtech.jts.geom.*;
 import java.util.List;
 
 @Getter
-class NoFlyZone {
+public class NoFlyZone {
     private final Polygon boundaryPolygon;
 
     public NoFlyZone(List<Coordinate> boundaryPoints, GeometryFactory factory) {

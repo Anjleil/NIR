@@ -10,6 +10,7 @@ import org.jxmapviewer.input.ZoomMouseWheelListenerCenter;
 import org.jxmapviewer.painter.CompoundPainter;
 import org.jxmapviewer.painter.Painter;
 import org.jxmapviewer.viewer.*;
+import project.NIR.JXMapViewer.Renderer.PointRenderer;
 
 import javax.swing.Timer;
 import javax.swing.*;
@@ -100,7 +101,7 @@ public class Sample4
         ));
         WaypointPainter<MyWaypoint> dronePainter = new WaypointPainter<>();
         dronePainter.setWaypoints(drones);
-        dronePainter.setRenderer(new FancyWaypointRenderer());
+        dronePainter.setRenderer(new PointRenderer("/drones.png"));
         return dronePainter;
     }
 

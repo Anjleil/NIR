@@ -1,6 +1,7 @@
 package project.NIR;
 
 import org.jxmapviewer.viewer.GeoPosition;
+import project.NIR.Utils.Geocode;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -101,13 +102,13 @@ public class MissionApp extends JFrame {
 
             try {
                 GeoPosition delivery = Geocode.getCoordinates(deliveryAddress);
-                GeoPosition departure = Geocode.getCoordinates(departureAddress);
+//                GeoPosition departure = Geocode.getCoordinates(departureAddress);
 
                 Client client = new Client();
-                client.setDeparture(departure);
+//                client.setDeparture(departure);
                 client.setDelivery(delivery);
                 client.connectToServer("localhost", 12345);
-                client.run();
+//                client.run();
 
             } catch (IOException ex) {
                 throw new RuntimeException(ex);

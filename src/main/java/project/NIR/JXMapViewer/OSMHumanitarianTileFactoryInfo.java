@@ -6,7 +6,7 @@ import org.jxmapviewer.viewer.TileFactoryInfo;
  * Uses OpenStreetMap Humanitarian Layer
  */
 public class OSMHumanitarianTileFactoryInfo extends TileFactoryInfo {
-    private static final int MAX_ZOOM = 19;
+    private static final int MAX_ZOOM = 20;
 
     /**
      * Default constructor for Humanitarian Layer

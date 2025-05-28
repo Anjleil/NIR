@@ -1,6 +1,7 @@
 
 package sample4_fancy;
 
+import lombok.Getter;
 import org.jxmapviewer.viewer.DefaultWaypoint;
 import org.jxmapviewer.viewer.GeoPosition;
 
@@ -10,9 +11,20 @@ import java.awt.*;
  * A waypoint that also has a color and a label
  * @author Martin Steiger
  */
+@Getter
 public class MyWaypoint extends DefaultWaypoint
 {
+    /**
+     * -- GETTER --
+     *
+     * @return the label text
+     */
     private final String label;
+    /**
+     * -- GETTER --
+     *
+     * @return the color
+     */
     private final Color color;
 
     /**
@@ -27,20 +39,5 @@ public class MyWaypoint extends DefaultWaypoint
         this.color = color;
     }
 
-    /**
-     * @return the label text
-     */
-    public String getLabel()
-    {
-        return label;
-    }
-
-    /**
-     * @return the color
-     */
-    public Color getColor()
-    {
-        return color;
-    }
 
 }

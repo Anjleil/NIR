@@ -10,7 +10,7 @@ public class PathFinder {
     private final Point start;
     private final Point goal;
     private final List<NoFlyZone> noFlyZones;
-    double maxDistance = 0.01; // Радиус соседства (примерно 500 м)
+    double maxDistance = 0.02; // Радиус соседства (примерно 500 м)
 
     public PathFinder(Set<Envelope> gridCells, Point start, Point goal, List<NoFlyZone> noFlyZones) {
         this.geometryFactory = new GeometryFactory();

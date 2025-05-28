@@ -1,57 +1,68 @@
 package project.NIR;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.jxmapviewer.viewer.GeoPosition;
-import project.NIR.Models.ClientData;
+import project.NIR.Models.Data.ClientData;
+import project.NIR.Models.Data.ServerData;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
 
 @Getter
 @Setter
+@NoArgsConstructor
 public class Client {
     private Socket clientSocket;
-    private ObjectOutputStream outObj;
-    private GeoPosition departure;
+    private ObjectOutputStream out;
+    private ObjectInputStream in;
     private GeoPosition delivery;
 
-    public void connectToServer(String serverAddress, int serverPort) throws IOException {
-        this.clientSocket = new Socket(serverAddress, serverPort);
+    public Client(GeoPosition delivery){
+        setDelivery(delivery);
     }
 
-    public void run() {
+    @SneakyThrows
+    public void connectToServer(String host, int port) {
         try {
-            setOutObj(new ObjectOutputStream(getClientSocket().getOutputStream()));
-            sendMessage(); //Запрос на подключение
+            setClientSocket(new Socket(host, port));
+            setOut(new ObjectOutputStream(getClientSocket().getOutputStream()));
+            sendMessage();
+            setIn(new ObjectInputStream(getClientSocket().getInputStream()));
 
-            sendMessage(); //Отправка данных
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
+            sendMessage();
+
+            ServerData serverData;
             try {
-                clientSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+                serverData = (ServerData) in.readObject();
+                System.out.println(serverData.toString());
+            } catch (ClassNotFoundException | IOException e) {
+                System.out.println("Не удалось прочитать данные сервера");
             }
+        } catch (IOException e){
+            clientSocket.close();
         }
     }
 
     public static void main(String[] args) throws IOException {
-        Client client = new Client();
+        Client client = new Client(new GeoPosition(55.751425, 37.664654));
         client.connectToServer("localhost", 12345);
-        client.run();
+//        client.run();
     }
 
     private ClientData createPackage(){
-        return new ClientData(getDeparture(), getDelivery());
+        return new ClientData(getDelivery());
     }
 
     private void sendMessage(){
         try {
             ClientData data = createPackage();
-            getOutObj().writeObject(data);
-            getOutObj().flush();
+            getOut().writeObject(data);
+            getOut().flush();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

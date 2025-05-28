@@ -1,8 +1,8 @@
 package project.NIR;
 
+import project.NIR.Models.Data.Data;
 import project.NIR.Models.Hundlers.ClientHandler;
 import project.NIR.Models.Hundlers.DroneHandler;
-import project.NIR.Models.ServerData;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -12,21 +12,29 @@ import java.net.Socket;
 public class CommandCenter {
     private static final int PORT = 12345;
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         App.run();
         startServer();
     }
 
     private static void startServer() {
+        ServerSocket server = null;
         try {
-            ServerSocket server = new ServerSocket(PORT);
+            server = new ServerSocket(PORT);
             System.out.println("Сервер запущен!");
-            while (true) {
-                Socket clientSocket = server.accept();
+        } catch (IOException e) {
+            System.out.println("Сервер не удалось запустить");
+        }
+
+        while (true) {
+            Socket clientSocket;
+            try {
+                assert server != null;
+                clientSocket = server.accept();
                 System.out.print("Новое подключение: ");
 
                 ObjectInputStream packageStream = new ObjectInputStream(clientSocket.getInputStream());
-                ServerData serverData = (ServerData) packageStream.readObject();
+                Data serverData = (Data) packageStream.readObject();
 
                 if ("DRONE".equals(serverData.getType())) {
                     System.out.println("Подключен дрон");
@@ -40,11 +48,10 @@ public class CommandCenter {
                     System.out.println("Неизвестный тип клиента");
                     clientSocket.close();
                 }
+            } catch (IOException | ClassNotFoundException e) {
+                System.out.println("Неизвестная ошибка");
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+
         }
     }
 

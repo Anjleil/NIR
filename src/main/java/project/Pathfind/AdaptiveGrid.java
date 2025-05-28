@@ -5,11 +5,11 @@ import org.locationtech.jts.geom.*;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-class AdaptiveGrid {
+public class AdaptiveGrid {
     private final GeometryFactory geometryFactory = new GeometryFactory();
-    private final double baseResolution = 500; // Начальный размер ячейки в метрах
-    private final double maxDetailResolution = 100; // Максимальная детализация 10 м
-
+    private static final double baseResolution = 500; // Начальный размер ячейки в метрах
+    private static final double maxDetailResolution = 100; // Максимальная детализация 10 м
+    private static final double buffer = 0.005; // Максимальная детализация 10 м
     public Set<Envelope> createGridAroundPoint(Point base, double radius, List<NoFlyZone> noFlyZones) {
         Set<Envelope> cells = new HashSet<>();
         // Определим границы начальной области вокруг базы
@@ -46,25 +46,15 @@ class AdaptiveGrid {
                 );
 
                 // Проверяем пересечение и зону влияния
-                if (shouldRefineWithBuffer(cell, noFlyZones, 0)) {
+                if (shouldRefineWithBuffer(cell, noFlyZones, buffer)){
                     if (resolution > maxDetailResolution) {
-                        // Делим текущую ячейку на более мелкие
-                        createCells(
-                                cell.getMinY(), cell.getMaxY(), cell.getMinX(), cell.getMaxX(),
-                                Math.max(resolution / 10, maxDetailResolution), cells, noFlyZones
+                        createCells(cell.getMinY(), cell.getMaxY(), cell.getMinX(), cell.getMaxX(),
+                                maxDetailResolution, cells, noFlyZones
                         );
                     }
-                } else{
-                    if (shouldRefineWithBuffer(cell, noFlyZones, 0.002)){
-                        if (resolution > maxDetailResolution) {
-                            createCells(
-                                    cell.getMinY(), cell.getMaxY(), cell.getMinX(), cell.getMaxX(),
-                                    resolution / 5, cells, noFlyZones
-                            );
-                        }
-                    }
-                    cells.add(cell); // Добавляем ячейку, если нет пересечения или влияния
                 }
+                if ((shouldRefineWithBuffer(cell, noFlyZones, buffer) || (resolution == baseResolution)) && !shouldRefineWithBuffer(cell, noFlyZones, 0))
+                    cells.add(cell);
             }
         }
     }

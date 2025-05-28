@@ -3,8 +3,8 @@ package project.NIR.Models.Panes;
 import javax.swing.*;
 import java.awt.*;
 
-public class RoundedPanel extends JPanel {
-    public RoundedPanel() {
+public class RoundedPanelRect extends JPanel {
+    public RoundedPanelRect() {
         setOpaque(false);
         //setBorder(new LineBorder(new Color(0, 0, 0), 0, true));
     }
@@ -16,7 +16,7 @@ public class RoundedPanel extends JPanel {
         g2.setColor(getBackground());
         g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
         g2.setColor(getForeground());
-//        g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 20, 20);
+        g2.drawRoundRect(0, 0, getWidth() - 2, getHeight() - 2, 20, 20);
         g2.dispose();
         super.paintComponent(g);
     }

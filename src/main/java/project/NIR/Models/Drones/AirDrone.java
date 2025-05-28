@@ -10,4 +10,8 @@ public class AirDrone extends Drone {
 
     }
 
+    @Override
+    public void run() {
+
+    }
 }
