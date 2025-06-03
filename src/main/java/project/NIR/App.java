@@ -19,6 +19,9 @@ public class App {
         frame.setVisible(true);
 
         Timer timer = new Timer(5000, e -> {
+            if (MapModel.getMapViewer() != null) {
+                MapModel.getMapViewer().updateMapDisplay();
+            }
             frame.repaint();
 
             List<GeoPath> paths = SharedData.getPaths();

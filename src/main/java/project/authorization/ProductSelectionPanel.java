@@ -123,7 +123,7 @@ class ProductSelectionPanel extends JPanel {
         list.setSelectionForeground(LIST_SELECTION_FG_COLOR);
         list.setCellRenderer(new DarkProductCellRenderer());
         list.setBorder(BorderFactory.createEmptyBorder()); // No border for list itself, scrollpane will have it
-        list.setFixedCellHeight(70); // Increased height for description preview
+        list.setFixedCellHeight(90); // Increased height for description preview and new font
     }
 
     private void styleScrollPane(JScrollPane scrollPane) {

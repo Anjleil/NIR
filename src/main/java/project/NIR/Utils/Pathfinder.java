@@ -15,27 +15,29 @@ import java.util.List;
 import java.util.Set;
 
 public class Pathfinder {
-    private Point warehouse;
     private GeometryFactory factory;
     private List<NoFlyZone> noFlyZones;
     private Set<Envelope> gridCells;
-    private final static int radius = 10000;
-    private final static double buffer = 0.003;
 
     public Pathfinder() {
         this.factory = new GeometryFactory();
-        this.warehouse = factory.createPoint(new Coordinate(55.748935, 37.705178));
         setNoFlyZone();
-        setGrid();
+        setGridAroundDefaultPoint();
     }
 
-    public Path createPath(Point destination) {
-        PathFinder pathFinder = new PathFinder(gridCells, warehouse, destination, noFlyZones);
+    public Path createPath(Point startPoint, Point destinationPoint) {
+        System.out.println("Pathfinder: Creating path from " + startPoint + " to " + destinationPoint);
+        PathFinder pathFinderAlgorithm = new PathFinder(gridCells, startPoint, destinationPoint, noFlyZones);
 
         Path path = new Path();
-        path.setPoints(pathFinder.findPath());
+        List<Point> foundPoints = pathFinderAlgorithm.findPath();
+        path.setPoints(foundPoints);
 
-        System.out.println(path);
+        if (foundPoints != null && !foundPoints.isEmpty()) {
+            System.out.println("Pathfinder: Path found with " + foundPoints.size() + " points. " + path);
+        } else {
+            System.out.println("Pathfinder: No path found from " + startPoint + " to " + destinationPoint);
+        }
         return path;
     }
 
@@ -48,8 +50,11 @@ public class Pathfinder {
         }
     }
 
-    private void setGrid(){
+    private void setGridAroundDefaultPoint(){
         AdaptiveGrid grid = new AdaptiveGrid();
-        gridCells = grid.createGridAroundPoint(warehouse, radius, noFlyZones);
+        Point gridCenter = factory.createPoint(new Coordinate(37.6173, 55.7558));
+        int defaultRadius = 25000;
+        gridCells = grid.createGridAroundPoint(gridCenter, defaultRadius, noFlyZones);
+        System.out.println("Pathfinder: Grid initialized around " + gridCenter + " with radius " + defaultRadius + ". Cells: " + (gridCells != null ? gridCells.size() : "null"));
     }
 }

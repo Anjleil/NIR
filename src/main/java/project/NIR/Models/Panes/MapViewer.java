@@ -16,17 +16,21 @@ import org.locationtech.jts.geom.GeometryFactory;
 import project.NIR.JXMapViewer.GeoapifyPositronTileFactoryInfo;
 import project.NIR.JXMapViewer.PanMouseInputListener;
 import project.NIR.JXMapViewer.PolygonPainter;
+import project.NIR.Models.Data.ActiveMission;
 import project.NIR.Models.NoFlyZoneMap;
+import project.NIR.Models.Warehouse;
 import project.Pathfind.NoFlyZoneLoader;
 import project.NIR.JXMapViewer.Renderer.PointRenderer;
+import project.NIR.Models.Data.SharedData;
+import project.NIR.Utils.RoutePainter;
 import sample4_fancy.MyWaypoint;
-import sample4_fancy.RoutePainter;
 
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -34,79 +38,104 @@ import java.util.Set;
 @Getter
 public class MapViewer {
     private final JXMapViewer mapViewer;
-    List<List<GeoPosition>> routes = new ArrayList<>();
+    private List<Painter<JXMapViewer>> staticPainters = new ArrayList<>();
+    private final GeometryFactory factory = new GeometryFactory();
 
     public MapViewer() throws IOException {
         mapViewer = new JXMapViewer();
 
-        List<Painter<JXMapViewer>> painters = new ArrayList<>();
-
-        // Пример маршрута
-//        List<GeoPosition> route = List.of(
-//                new GeoPosition(55.795099, 37.778590),
-//                new GeoPosition(55.787885, 37.753699),
-//                new GeoPosition(55.780895, 37.713494)
-//        );
-
-        List<GeoPosition> route = List.of(
-                new GeoPosition(55.746619, 37.692969),new GeoPosition(55.74668669598512, 37.69316762840084),new GeoPosition(55.742190087955535, 37.67716642041813),new GeoPosition(55.73769347992594, 37.6611685325436),new GeoPosition(55.733196871896354, 37.64357747797361),new GeoPosition(55.73229755029044, 37.64038323746066),new GeoPosition(55.73049890707861, 37.627587440263895),new GeoPosition(55.729599585472684, 37.614811894481555),new GeoPosition(55.73139822868451, 37.605245819188426),new GeoPosition(55.73679415832002, 37.58928869181406),new GeoPosition(55.74129076634962, 37.581315375607396),new GeoPosition(55.751425, 37.564654));
-        routes.add(route);
-        route = List.of(
-        new GeoPosition(55.776536, 37.686005),new GeoPosition(55.77338837437921, 37.69317223601698),new GeoPosition(55.77158973116738, 37.69474229847244),new GeoPosition(55.76529447992594, 37.69791048111024),new GeoPosition(55.74730804780758, 37.70578304261757),new GeoPosition(55.73112025890106, 37.71205160638933),new GeoPosition(55.726623650871474, 37.7136179409539),new GeoPosition(55.722127042841876, 37.71039361045224),new GeoPosition(55.714708, 37.699462));
-        routes.add(route);
-        //        List<GeoPosition> route = SharedData.getPaths().get(0).getPoints();
-
-        GeometryFactory factory = new GeometryFactory();
         NoFlyZoneLoader loader = new NoFlyZoneLoader(factory);
         List<NoFlyZoneMap> noFlyZones = loader.loadNoFlyZonesForMap("src/main/resources/no_fly_zones_moscow.json");
 
-        for (NoFlyZoneMap zone : noFlyZones){
+        for (NoFlyZoneMap zone : noFlyZones) {
             PolygonPainter polygonPainter = new PolygonPainter(zone.getGeoPositions(), new Color(255, 0, 0, 50), Color.RED);
-            painters.add(polygonPainter);
+            staticPainters.add(polygonPainter);
         }
+        System.out.println("MapViewer: Initialized with " + staticPainters.size() + " static no-fly zone painters.");
 
-        // Добавляем painters в список
-
-        int droneID = 1;
-        for(List<GeoPosition> r : routes){
-            RoutePainter routePainter = new RoutePainter(r);
-            painters.add(routePainter);
-
-            WaypointPainter<MyWaypoint> dronePainter = setDronePainter(r.get(0), droneID);
-            painters.add(dronePainter);
-            droneID++;
-
-            WaypointPainter<MyWaypoint> destinationPainter = setDestinationPainter(r.get(r.size()-1));
-            painters.add(destinationPainter);
-        }
-
-
-        CompoundPainter<JXMapViewer> painter = new CompoundPainter<>(painters);
-        mapViewer.setOverlayPainter(painter);
+        updateMapDisplay();
 
         GeoPosition Moscow = new GeoPosition(55.788845, 37.791609);
         addInteractions(Moscow);
     }
 
-    private WaypointPainter<MyWaypoint> setDronePainter(GeoPosition startPos, int droneID) {
+    public void updateMapDisplay() {
+        List<Painter<JXMapViewer>> allPainters = new ArrayList<>(this.staticPainters);
+        List<Painter<JXMapViewer>> dynamicPainters = new ArrayList<>();
+
+        List<Warehouse> warehouses = SharedData.getWarehouses();
+        System.out.println("MapViewer: Updating display. Found " + (warehouses != null ? warehouses.size() : "null") + " warehouses in SharedData.");
+        if (warehouses != null) {
+            for (Warehouse wh : warehouses) {
+                if (wh.getLocation() != null) {
+                    WaypointPainter<MyWaypoint> warehousePainter = setWarehousePainter(wh.getLocation(), wh.getName());
+                    dynamicPainters.add(warehousePainter);
+                    System.out.println("MapViewer: Added warehouse painter for " + wh.getName() + " at " + wh.getLocation());
+                }
+            }
+        }
+
+        Collection<ActiveMission> missions = SharedData.getAllActiveMissions();
+        System.out.println("MapViewer: Found " + (missions != null ? missions.size() : "null") + " total active missions/drone states in SharedData.");
+
+        if (missions != null) {
+            for (ActiveMission mission : missions) {
+                if (mission.isAssigned() && mission.getCurrentDronePosition() != null) {
+                    WaypointPainter<MyWaypoint> dronePainter = setDronePainter(mission.getCurrentDronePosition(), mission.getDroneId(), mission.isAssigned());
+                    dynamicPainters.add(dronePainter);
+                }
+
+                if (mission.isAssigned() && mission.getPathPoints() != null && !mission.getPathPoints().isEmpty()) {
+                    List<GeoPosition> route = mission.getPathPoints();
+                    
+                    RoutePainter routePainter = new RoutePainter(route);
+                    dynamicPainters.add(routePainter);
+
+                    if (!route.isEmpty()) {
+                        WaypointPainter<MyWaypoint> destinationPainter = setDestinationPainter(route.get(route.size() - 1));
+                        dynamicPainters.add(destinationPainter);
+                    }
+                } 
+            }
+        }
+        
+        allPainters.addAll(dynamicPainters);
+        System.out.println("MapViewer: Total painters to set: " + allPainters.size() + " (Static: "+staticPainters.size()+", Dynamic: "+dynamicPainters.size()+")");
+
+        CompoundPainter<JXMapViewer> compoundPainter = new CompoundPainter<>(allPainters);
+        mapViewer.setOverlayPainter(compoundPainter);
+        mapViewer.repaint();
+    }
+
+    private WaypointPainter<MyWaypoint> setWarehousePainter(GeoPosition position, String name) {
+        Set<MyWaypoint> warehouseWaypoints = new HashSet<>();
+        warehouseWaypoints.add(new MyWaypoint(name, Color.DARK_GRAY, position));
+        WaypointPainter<MyWaypoint> warehousePainter = new WaypointPainter<>();
+        warehousePainter.setWaypoints(warehouseWaypoints);
+        warehousePainter.setRenderer(new PointRenderer("/warehouse.png"));
+        return warehousePainter;
+    }
+
+    private WaypointPainter<MyWaypoint> setDronePainter(GeoPosition position, int droneID, boolean isAssigned) {
+        Color droneColor = isAssigned ? Color.ORANGE : Color.GREEN;
         Set<MyWaypoint> drones = new HashSet<>(Set.of(
-                new MyWaypoint("Дрон " + droneID, Color.ORANGE, startPos)
+                new MyWaypoint("Дрон " + droneID + (isAssigned ? " (Занят)" : " (Свободен)"), droneColor, position)
         ));
         WaypointPainter<MyWaypoint> dronePainter = new WaypointPainter<>();
         dronePainter.setWaypoints(drones);
-        dronePainter.setRenderer(new PointRenderer("/drones.png"));
+        dronePainter.setRenderer(new PointRenderer("/project/NIR/Utils/drones.png"));
         return dronePainter;
     }
-    private WaypointPainter<MyWaypoint> setDestinationPainter(GeoPosition startPos) {
+
+    private WaypointPainter<MyWaypoint> setDestinationPainter(GeoPosition destPos) {
         Set<MyWaypoint> destination = new HashSet<>(Set.of(
-                new MyWaypoint("Пункт назначения", Color.ORANGE, startPos)
+                new MyWaypoint("Пункт назначения", Color.BLUE, destPos)
         ));
         WaypointPainter<MyWaypoint> destinationPainter = new WaypointPainter<>();
         destinationPainter.setWaypoints(destination);
         destinationPainter.setRenderer(new PointRenderer("/home_black.png"));
         return destinationPainter;
     }
-
 
     public void addInteractions(GeoPosition startPos) {
         TileFactoryInfo info = new GeoapifyPositronTileFactoryInfo();

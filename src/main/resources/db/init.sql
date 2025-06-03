@@ -76,7 +76,7 @@ CREATE TABLE cart_items (
 -- Generate a BCrypt hash for "password123" (you'd typically do this in Java or a tool)
 -- Example hash for "password123": $2a$10$ZyVvF.1.q9K4T6s9G2fXj.O2q9J2qO9lJ.F8E.pS5.2jI6S7q8N.K
 INSERT INTO users (username, password_hash, email, first_name, last_name) VALUES
-('testuser', '$2a$10$ZyVvF.1.q9K4T6s9G2fXj.O2q9J2qO9lJ.F8E.pS5.2jI6S7q8N.K', 'test@example.com', 'Test', 'User');
+('testuser', '$2a$10$mnxZJlJnicV140zIxjeilOOR2iFUeXeFyz5jumK36FN3D2Q3bYPsm', 'test@example.com', 'Test', 'User');
 
 -- Sample Products (reusing and expanding from previous hardcoded data)
 INSERT INTO products (name, description, price, stock_quantity, image_url) VALUES

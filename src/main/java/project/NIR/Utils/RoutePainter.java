@@ -19,21 +19,28 @@ public class RoutePainter implements Painter<JXMapViewer> {
     @Override
     public void paint(Graphics2D g, JXMapViewer map, int width, int height) {
         g = (Graphics2D) g.create();
+        
+        // Convert from viewport to world bitmap
+        Rectangle rect = map.getViewportBounds();
+        g.translate(-rect.x, -rect.y);
+
         g.setColor(Color.RED);
         g.setStroke(new BasicStroke(2));
 
         Path2D path = new Path2D.Double();
         boolean first = true;
-        for (GeoPosition geo : route) {
-            Point2D pt = map.getTileFactory().geoToPixel(geo, map.getZoom());
-            if (first) {
-                path.moveTo(pt.getX(), pt.getY());
-                first = false;
-            } else {
-                path.lineTo(pt.getX(), pt.getY());
+        if (route != null && !route.isEmpty()) {
+            for (GeoPosition geo : route) {
+                Point2D pt = map.getTileFactory().geoToPixel(geo, map.getZoom());
+                if (first) {
+                    path.moveTo(pt.getX(), pt.getY());
+                    first = false;
+                } else {
+                    path.lineTo(pt.getX(), pt.getY());
+                }
             }
+            g.draw(path);
         }
-        g.draw(path);
         g.dispose();
     }
 }

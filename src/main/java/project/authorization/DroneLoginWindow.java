@@ -8,6 +8,9 @@ import java.awt.event.FocusListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import project.authorization.db.DatabaseManager; // Import DatabaseManager
+import javax.imageio.ImageIO; // Added for image loading
+import java.io.IOException; // Added for image loading
+import java.io.InputStream; // Added for image loading
 
 public class DroneLoginWindow extends JFrame {
     private JTextField usernameField;
@@ -27,36 +30,49 @@ public class DroneLoginWindow extends JFrame {
 
     // Dark Theme Color Palette
     private static final Color WINDOW_BACKGROUND = new Color(45, 45, 45);
-    private static final Color PANEL_BACKGROUND = new Color(55, 58, 60);
+    // New semi-transparent background for content panels
+    private static final Color PANEL_BACKGROUND_TRANSPARENT = new Color(55, 58, 60, 200); // Added alpha for transparency
+    private static final Color PANEL_BACKGROUND = new Color(55, 58, 60); // Kept for opaque elements if needed, or remove if all are transparent
     private static final Color ACCENT_COLOR = new Color(242, 169, 0); // Orange accent
-    private static final Color TEXT_PRIMARY = new Color(220, 220, 220); // Off-white
-    private static final Color TEXT_SECONDARY = new Color(150, 150, 150); // Light gray
+    private static final Color TEXT_PRIMARY = new Color(180, 180, 180); // Darker Off-white
+    private static final Color TEXT_SECONDARY = new Color(120, 120, 120); // Darker Light gray
     private static final Color INPUT_LINE_COLOR = new Color(100, 100, 100);
     private static final Color INPUT_FOCUS_LINE_COLOR = ACCENT_COLOR;
     private static final Color BUTTON_TEXT_COLOR = Color.WHITE;
 
-    private static final Font DEFAULT_FONT = new Font("SansSerif", Font.PLAIN, 16);
-    private static final Font BOLD_FONT = new Font("SansSerif", Font.BOLD, 16);
-    private static final Font TAB_FONT = new Font("SansSerif", Font.BOLD, 18);
-    private static final Font SMALL_FONT = new Font("SansSerif", Font.PLAIN, 14);
+    private static final Font DEFAULT_FONT = new Font("Franklin Gothic Medium", Font.PLAIN, 16);
+    private static final Font BOLD_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 16);
+    private static final Font TAB_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 18);
+    private static final Font SMALL_FONT = new Font("Franklin Gothic Medium", Font.PLAIN, 14);
+
+    private Image backgroundImage;
+    private static final String BACKGROUND_IMAGE_PATH = "/images/login_background.jpg"; // Configurable path
 
     public DroneLoginWindow() {
         super("DroneExpress - Авторизация");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(400, 550); // Adjusted size for a more compact look
+        setSize(450, 650); // Adjusted size for a potentially taller look with image
         setLocationRelativeTo(null);
-        getContentPane().setBackground(WINDOW_BACKGROUND);
-        setLayout(new BorderLayout());
-        setUndecorated(false); // Assuming standard window decorations for now
+        // Removed setUndecorated(false) to keep standard window controls
+        // getContentPane().setBackground(WINDOW_BACKGROUND); // Will be handled by BackgroundPanel
+
+        loadBackgroundImage();
+
+        // Set custom content pane for background image
+        BackgroundPanel backgroundPanel = new BackgroundPanel();
+        setContentPane(backgroundPanel);
+        backgroundPanel.setLayout(new BorderLayout()); // Important for placing mainPanelContainer
 
         // Main content panel that will hold cardPanel and tabs
         JPanel mainPanelContainer = new JPanel(new BorderLayout(0,0));
-        mainPanelContainer.setBackground(WINDOW_BACKGROUND);
+        // mainPanelContainer.setBackground(WINDOW_BACKGROUND); // Now transparent
+        mainPanelContainer.setOpaque(false);
         mainPanelContainer.setBorder(BorderFactory.createEmptyBorder(30, 40, 40, 40)); // Overall padding
 
         // Tab-like Sign In / Sign Up
         JPanel tabPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0)); // Centered tabs
-        tabPanel.setBackground(WINDOW_BACKGROUND); // Match window background
+        // tabPanel.setBackground(WINDOW_BACKGROUND); // Now transparent
+        tabPanel.setOpaque(false);
         signInLabel = new JLabel("SIGN IN");
         styleTabLabel(signInLabel, true); 
         tabPanel.add(signInLabel);
@@ -69,8 +85,8 @@ public class DroneLoginWindow extends JFrame {
         // CardPanel for switching between Sign In and Sign Up views
         cardLayout = new CardLayout();
         cardPanel = new JPanel(cardLayout);
-        cardPanel.setBackground(PANEL_BACKGROUND);
-        cardPanel.setOpaque(true);
+        // cardPanel.setBackground(PANEL_BACKGROUND); // Will use transparent background
+        cardPanel.setOpaque(false); 
         // cardPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20)); // Padding within card area
 
         // Create Sign In Panel
@@ -82,7 +98,8 @@ public class DroneLoginWindow extends JFrame {
         cardPanel.add(signUpPanel, "SIGN_UP");
         
         mainPanelContainer.add(cardPanel, BorderLayout.CENTER);
-        add(mainPanelContainer, BorderLayout.CENTER);
+        // add(mainPanelContainer, BorderLayout.CENTER); // Added to backgroundPanel instead
+        backgroundPanel.add(mainPanelContainer, BorderLayout.CENTER);
         
         // Set default pre-filled credentials for sign-in form
         usernameField.setText("testuser");
@@ -121,8 +138,13 @@ public class DroneLoginWindow extends JFrame {
     
     private JPanel createSignInPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(PANEL_BACKGROUND);
-        panel.setBorder(BorderFactory.createEmptyBorder(30, 30, 30, 30));
+        // panel.setBackground(PANEL_BACKGROUND); // Use transparent background
+        panel.setBackground(PANEL_BACKGROUND_TRANSPARENT);
+        panel.setOpaque(true); // The panel itself needs to be opaque to show its semi-transparent color
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(255,255,255,50)), // Subtle border
+            BorderFactory.createEmptyBorder(30, 30, 30, 30)
+        ));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -170,8 +192,13 @@ public class DroneLoginWindow extends JFrame {
     
     private JPanel createSignUpPanel() {
         JPanel panel = new JPanel(new GridBagLayout());
-        panel.setBackground(PANEL_BACKGROUND);
-        panel.setBorder(BorderFactory.createEmptyBorder(20, 30, 20, 30)); // Adjusted padding slightly
+        // panel.setBackground(PANEL_BACKGROUND); // Use transparent background
+        panel.setBackground(PANEL_BACKGROUND_TRANSPARENT);
+        panel.setOpaque(true); // The panel itself needs to be opaque to show its semi-transparent color
+        panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(255,255,255,50)), // Subtle border
+            BorderFactory.createEmptyBorder(20, 30, 20, 30) // Adjusted padding slightly
+        ));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.gridwidth = GridBagConstraints.REMAINDER;
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -235,16 +262,16 @@ public class DroneLoginWindow extends JFrame {
     private void styleTextField(JTextField field, String placeholder) {
         field.setFont(DEFAULT_FONT);
         field.setForeground(TEXT_PRIMARY);
-        field.setBackground(PANEL_BACKGROUND);
+        field.setOpaque(false); 
         field.setCaretColor(TEXT_PRIMARY);
-        field.setOpaque(false); // Important for custom border painting
+        field.setMargin(new Insets(5, 5, 5, 5)); // Add internal padding for the text
 
         UnderlineBorder defaultBorder = new UnderlineBorder(INPUT_LINE_COLOR, 1);
-        UnderlineBorder focusBorder = new UnderlineBorder(INPUT_FOCUS_LINE_COLOR, 2); // Thicker focus
+        UnderlineBorder focusBorder = new UnderlineBorder(INPUT_FOCUS_LINE_COLOR, 2); 
 
-        field.setBorder(defaultBorder);
+        field.setBorder(defaultBorder); // Keep the simple border, margin handles padding
 
-        // Placeholder text behavior (simplified)
+        // Placeholder text behavior
         if (field.getText().isEmpty()) {
             field.setText(placeholder);
             field.setForeground(TEXT_SECONDARY);
@@ -274,7 +301,7 @@ public class DroneLoginWindow extends JFrame {
     private void styleCheckbox(JCheckBox checkbox) {
         checkbox.setFont(SMALL_FONT);
         checkbox.setForeground(TEXT_SECONDARY);
-        checkbox.setBackground(PANEL_BACKGROUND);
+        // checkbox.setBackground(PANEL_BACKGROUND); // No, should be transparent to panel bg
         checkbox.setOpaque(false);
         checkbox.setFocusPainted(false);
         // Basic styling for checkbox, more advanced requires custom icon painting
@@ -403,6 +430,61 @@ public class DroneLoginWindow extends JFrame {
         if (confirmPasswordFieldSignUp != null) confirmPasswordFieldSignUp.setText("");
     }
 
+    // Inner class for drawing background image
+    class BackgroundPanel extends JPanel {
+        @Override
+        protected void paintComponent(Graphics g) {
+            super.paintComponent(g);
+            if (backgroundImage != null) {
+                int imgWidth = backgroundImage.getWidth(this);
+                int imgHeight = backgroundImage.getHeight(this);
+                int panelWidth = getWidth();
+                int panelHeight = getHeight();
+
+                if (imgWidth <= 0 || imgHeight <= 0) return; // Avoid division by zero if image is invalid
+
+                double imgAspect = (double) imgWidth / imgHeight;
+                double panelAspect = (double) panelWidth / panelHeight;
+
+                int drawWidth = panelWidth;
+                int drawHeight = panelHeight;
+                int x = 0;
+                int y = 0;
+
+                if (imgAspect > panelAspect) { // Image is wider than panel (or less tall)
+                    // Fit height, crop width
+                    drawHeight = panelHeight;
+                    drawWidth = (int) (panelHeight * imgAspect);
+                    x = (panelWidth - drawWidth) / 2; // Center horizontally
+                } else { // Image is taller than panel (or less wide)
+                    // Fit width, crop height
+                    drawWidth = panelWidth;
+                    drawHeight = (int) (panelWidth / imgAspect);
+                    y = (panelHeight - drawHeight) / 2; // Center vertically
+                }
+                g.drawImage(backgroundImage, x, y, drawWidth, drawHeight, this);
+            } else {
+                g.setColor(WINDOW_BACKGROUND);
+                g.fillRect(0, 0, getWidth(), getHeight());
+            }
+        }
+    }
+
+    private void loadBackgroundImage() {
+        try (InputStream is = DroneLoginWindow.class.getResourceAsStream(BACKGROUND_IMAGE_PATH)) {
+            if (is == null) {
+                System.err.println("Background image not found at path: " + BACKGROUND_IMAGE_PATH);
+                backgroundImage = null;
+                return;
+            }
+            backgroundImage = ImageIO.read(is);
+        } catch (IOException e) {
+            System.err.println("Error loading background image: " + BACKGROUND_IMAGE_PATH);
+            e.printStackTrace();
+            backgroundImage = null;
+        }
+    }
+
     public static void main(String[] args) {
         // Initialize the database first
         DatabaseManager.initializeDatabase();
@@ -426,6 +508,14 @@ public class DroneLoginWindow extends JFrame {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        // Code to list all available font family names
+        String[] fontFamilyNames = GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames();
+        System.out.println("---- Available Font Families ----");
+        for (String name : fontFamilyNames) {
+            System.out.println(name);
+        }
+        System.out.println("---------------------------------");
 
         SwingUtilities.invokeLater(() -> {
             DroneLoginWindow window = new DroneLoginWindow();

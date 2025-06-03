@@ -13,9 +13,11 @@ public class GeoPath {
 
     public GeoPath (Path path){
         this.points = new ArrayList<>();
-        if(!path.isEmpty()){
+        if(path != null && path.getPoints() != null && !path.isEmpty()){
             for (Point p : path.getPoints()){
-                GeoPosition pos = new GeoPosition(p.getX(), p.getY());
+                // JTS Point: getX() is longitude, getY() is latitude
+                // GeoPosition constructor: GeoPosition(latitude, longitude)
+                GeoPosition pos = new GeoPosition(p.getY(), p.getX()); 
                 this.points.add(pos);
             }
         }
@@ -23,8 +25,8 @@ public class GeoPath {
 
     @Override
     public String toString() {
-        if (!points.isEmpty()) {
-            return "path = " + points.get(0) + "->" + points.get(points.size()-1);
-        } else return "No path";
+        if (points != null && !points.isEmpty()) {
+            return "path = [" + points.get(0).getLatitude() + ", " + points.get(0).getLongitude() + "]->[" + points.get(points.size()-1).getLatitude() + ", " + points.get(points.size()-1).getLongitude() + "] (" + points.size() + " pts)";
+        } else return "No path or empty path";
     }
 }

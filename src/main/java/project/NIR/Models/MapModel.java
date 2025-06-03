@@ -48,4 +48,8 @@ public class MapModel {
 
         return layeredPane;
     }
+
+    public static MapViewer getMapViewer() {
+        return mapViewer;
+    }
 }

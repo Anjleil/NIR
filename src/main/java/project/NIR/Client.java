@@ -31,6 +31,7 @@ public class Client {
         try {
             setClientSocket(new Socket(host, port));
             setOut(new ObjectOutputStream(getClientSocket().getOutputStream()));
+            getOut().flush();
             sendMessage();
             setIn(new ObjectInputStream(getClientSocket().getInputStream()));
 

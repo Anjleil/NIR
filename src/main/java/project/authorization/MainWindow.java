@@ -32,10 +32,10 @@ public class MainWindow extends JFrame {
     public static final Color TABLE_HEADER_BG_COLOR = new Color(65, 68, 70);
     public static final Color TABLE_SELECTION_BG_COLOR = ACCENT_COLOR.darker();
     public static final Color TABLE_SELECTION_FG_COLOR = Color.WHITE;
-    public static final Font DEFAULT_FONT = new Font("SansSerif", Font.PLAIN, 14);
-    public static final Font BOLD_FONT = new Font("SansSerif", Font.BOLD, 14);
-    public static final Font TAB_FONT = new Font("SansSerif", Font.BOLD, 16);
-    public static final Font TABLE_HEADER_FONT = new Font("SansSerif", Font.BOLD, 14);
+    public static final Font DEFAULT_FONT = new Font("Franklin Gothic Medium", Font.PLAIN, 14);
+    public static final Font BOLD_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 14);
+    public static final Font TAB_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 16);
+    public static final Font TABLE_HEADER_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 14);
 
     public MainWindow() {
         super("DroneExpress - Система заказов");
