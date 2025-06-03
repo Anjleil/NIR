@@ -23,7 +23,7 @@ public class CommandCenter {
         SharedData.clearAllMissionsAndWarehouses();
 
         Map<String, GeoPosition> warehouseLocations = new HashMap<>();
-        warehouseLocations.put("Warehouse 1", new GeoPosition(55.763890, 37.714960));
+        warehouseLocations.put("Warehouse 1", new GeoPosition(55.730899, 37.721991));
         warehouseLocations.put("Warehouse 2", new GeoPosition(55.773143, 37.530097));
         int dronesPerWarehouse = 5;
         SharedData.initializeWarehousesAndDrones(warehouseLocations, dronesPerWarehouse);
