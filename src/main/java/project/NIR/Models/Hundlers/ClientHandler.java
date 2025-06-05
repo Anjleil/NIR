@@ -20,6 +20,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 @Getter
 public class ClientHandler implements Runnable {
@@ -27,6 +30,8 @@ public class ClientHandler implements Runnable {
     private final ObjectInputStream packageStream;
     private final ObjectOutputStream packageStreamOut;
     private final ClientData initialClientData;
+
+    private static final ExecutorService pathfindingExecutor = Executors.newSingleThreadExecutor();
 
     public ClientHandler(Socket socket, ObjectInputStream packageStream, ObjectOutputStream packageStreamOut, ClientData initialClientData) throws IOException {
         this.clientSocket = socket;
@@ -39,7 +44,6 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         GeometryFactory factory = new GeometryFactory();
-        Pathfinder pathfinder = new Pathfinder();
         try {
             ClientData pathRequestData = this.initialClientData;
             GeoPosition clientDestinationGeoPos = pathRequestData.getDelivery();
@@ -75,8 +79,12 @@ public class ClientHandler implements Runnable {
             Point warehousePoint = factory.createPoint(new Coordinate(closestWarehouse.getLocation().getLongitude(), closestWarehouse.getLocation().getLatitude()));
             Point clientDestinationPoint = factory.createPoint(new Coordinate(clientDestinationGeoPos.getLongitude(), clientDestinationGeoPos.getLatitude()));
             
-            // 3. Create path from the closest warehouse to the client's destination
-            Path path = pathfinder.createPath(warehousePoint, clientDestinationPoint);
+            // 3. Submit pathfinding task to the queue and wait for the result
+            System.out.println("ClientHandler for " + clientSocket.getRemoteSocketAddress() + " submitting pathfinding request to queue.");
+            Future<Path> futurePath = pathfindingExecutor.submit(() ->
+                Pathfinder.getInstance().createPath(warehousePoint, clientDestinationPoint)
+            );
+            Path path = futurePath.get(); // This blocks until the path is calculated by the single-threaded executor.
             
             if (path != null && path.getPoints() != null && !path.getPoints().isEmpty()) { // Check path.getPoints() for emptiness
                 int tempMissionId = SharedData.addPendingClientMission(path);

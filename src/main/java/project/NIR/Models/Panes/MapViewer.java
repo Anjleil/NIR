@@ -26,11 +26,16 @@ import project.Pathfind.NoFlyZoneLoader;
 import project.NIR.JXMapViewer.Renderer.PointRenderer;
 import project.NIR.Models.Data.SharedData;
 import project.NIR.Utils.RoutePainter;
+import project.NIR.Utils.GeoUtils;
 import sample4_fancy.MyWaypoint;
 
 import javax.swing.*;
 import javax.swing.event.MouseInputListener;
 import java.awt.*;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
+import java.awt.event.MouseAdapter;
+import java.awt.geom.Point2D;
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -97,10 +102,18 @@ public class MapViewer {
                     } else {
                         waypoint.setPosition(mission.getCurrentDronePosition());
                     }
+
+                    if (mission.getPathPoints() != null && mission.getCurrentSegmentTargetIndex() < mission.getPathPoints().size()) {
+                        GeoPosition targetPos = mission.getPathPoints().get(mission.getCurrentSegmentTargetIndex());
+                        double angle = GeoUtils.calculateBearing(mission.getCurrentDronePosition(), targetPos);
+                        waypoint.setRotationAngle(angle);
+                    }
+                    
+                    boolean isSelected = selectedDroneId != null && selectedDroneId.equals(droneId);
                     
                     if (mission.getPathPoints() != null && !mission.getPathPoints().isEmpty()) {
                         List<GeoPosition> route = mission.getPathPoints();
-                        RoutePainter routePainter = new RoutePainter(route, mission.getCurrentDronePosition(), mission.getCurrentSegmentTargetIndex(), selectedDroneId != null && selectedDroneId.equals(droneId));
+                        RoutePainter routePainter = new RoutePainter(route, mission.getCurrentDronePosition(), mission.getCurrentSegmentTargetIndex(), isSelected);
                         dynamicPainters.add(routePainter);
 
                         if (!route.isEmpty() && !mission.isReturning()) {
@@ -163,6 +176,22 @@ public class MapViewer {
         mapViewer.addMouseListener(new CenterMapListener(mapViewer));
         mapViewer.addMouseWheelListener(new ZoomMouseWheelListenerCenter(mapViewer));
         mapViewer.addKeyListener(new PanKeyListener(mapViewer));
+
+        mapViewer.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getButton() != MouseEvent.BUTTON3) return;
+
+                Integer selectedDroneId = MapModel.getSelectedDroneId();
+
+                if (MapModel.isManualControlActive() && selectedDroneId != null) {
+                    GeoPosition newDest = mapViewer.getTileFactory().pixelToGeo(e.getPoint(), mapViewer.getZoom());
+                    SharedData.setManualWaypoint(selectedDroneId, newDest);
+                } else {
+                    MapModel.setSelectedDroneId(null);
+                }
+            }
+        });
 
         tileFactory.setThreadPoolSize(32);
         mapViewer.setAddressLocation(startPos);

@@ -19,6 +19,8 @@ public class ActiveMission {
     private boolean assigned; // To track if a drone has been assigned this mission
     private boolean isReturning = false;
     private double batteryLevel = 100.0;
+    private double altitude;
+    private double speed;
 
     // Constructor for a mission created from a client request (initially unassigned to a specific drone)
     public ActiveMission(GeoPath path) {

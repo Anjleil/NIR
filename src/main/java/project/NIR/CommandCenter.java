@@ -7,6 +7,7 @@ import project.NIR.Models.Data.SharedData;
 import project.NIR.Models.Hundlers.ClientHandler;
 import project.NIR.Models.Hundlers.DroneHandler;
 import project.NIR.Models.Data.ClientData;
+import project.NIR.Utils.Pathfinder;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -15,6 +16,8 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class CommandCenter {
     public static final int PORT = 12345;
@@ -38,14 +41,16 @@ public class CommandCenter {
         Map<String, GeoPosition> warehouseLocations = new HashMap<>();
         warehouseLocations.put("Warehouse 1", new GeoPosition(55.730899, 37.721991));
         warehouseLocations.put("Warehouse 2", new GeoPosition(55.773143, 37.530097));
-        int dronesPerWarehouse = 5;
+        int dronesPerWarehouse = 50;
         SharedData.initializeWarehousesAndDrones(warehouseLocations, dronesPerWarehouse);
+        Pathfinder.initialize(SharedData.getWarehouses());
 
         App.run();
         startServer();
     }
 
     private static void startServer() {
+        ExecutorService connectionHandlerPool = Executors.newFixedThreadPool(10);
         try {
             serverSocketInstance = new ServerSocket(PORT);
             System.out.println("CommandCenter: Server started on port " + PORT);
@@ -76,13 +81,11 @@ public class CommandCenter {
                 if ("DRONE".equals(receivedData.getType())) {
                     DroneData initialDroneData = (DroneData) receivedData;
                     System.out.println("CommandCenter: Connection type DRONE. ID: " + initialDroneData.getId() + ". Initial Coords: ["+initialDroneData.getLatitude()+","+initialDroneData.getLongitude()+"]");
-                    Thread thread = new Thread(new DroneHandler(clientSocket, packageStream, outStreamToClient, initialDroneData));
-                    thread.start();
+                    connectionHandlerPool.submit(new DroneHandler(clientSocket, packageStream, outStreamToClient, initialDroneData));
                 } else if ("CLIENT".equals(receivedData.getType())) {
                     ClientData initialClientData = (ClientData) receivedData;
                     System.out.println("CommandCenter: Connection type CLIENT. Destination: [" + initialClientData.getDelivery().getLatitude() + "," + initialClientData.getDelivery().getLongitude() + "]");
-                    Thread thread = new Thread(new ClientHandler(clientSocket, packageStream, outStreamToClient, initialClientData));
-                    thread.start();
+                    connectionHandlerPool.submit(new ClientHandler(clientSocket, packageStream, outStreamToClient, initialClientData));
                 } else {
                     System.out.println("CommandCenter: Unknown client type: " + receivedData.getType() + ". Closing connection.");
                     if (outStreamToClient != null) outStreamToClient.close();

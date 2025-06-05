@@ -73,4 +73,28 @@ public class GeoUtils {
 
         return new GeoPosition(Math.toDegrees(latIntermediate), Math.toDegrees(lonIntermediate));
     }
+
+    /**
+     * Calculates the initial bearing (forward azimuth) from one point to another.
+     * @param p1 the start point
+     * @param p2 the end point
+     * @return The bearing in radians
+     */
+    public static double calculateBearing(GeoPosition p1, GeoPosition p2) {
+        if (p1 == null || p2 == null) {
+            return 0.0;
+        }
+
+        double lat1 = Math.toRadians(p1.getLatitude());
+        double lon1 = Math.toRadians(p1.getLongitude());
+        double lat2 = Math.toRadians(p2.getLatitude());
+        double lon2 = Math.toRadians(p2.getLongitude());
+
+        double dLon = lon2 - lon1;
+
+        double y = Math.sin(dLon) * Math.cos(lat2);
+        double x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+
+        return Math.atan2(y, x);
+    }
 } 

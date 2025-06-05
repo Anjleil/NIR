@@ -295,4 +295,38 @@ public class SharedData {
             System.out.println("SharedData: Assigned new return path to drone " + droneId);
         }
     }
+
+    public static void setManualWaypoint(int droneId, GeoPosition newDestination) {
+        synchronized (lock) {
+            ActiveMission mission = getActiveMissionByDroneId(droneId);
+            if (mission == null || !mission.isAssigned()) {
+                System.err.println("SharedData: setManualWaypoint - Drone " + droneId + " is not on an active mission.");
+                return;
+            }
+            
+            System.out.println("SharedData: Manual override for drone " + droneId + ". New destination: " + newDestination);
+
+            GeometryFactory factory = new GeometryFactory();
+            Pathfinder pathfinder = Pathfinder.getInstance();
+
+            Point dronePoint = factory.createPoint(new Coordinate(mission.getCurrentDronePosition().getLongitude(), mission.getCurrentDronePosition().getLatitude()));
+            Point newDestPoint = factory.createPoint(new Coordinate(newDestination.getLongitude(), newDestination.getLatitude()));
+
+            Path newPath = pathfinder.createPath(dronePoint, newDestPoint);
+
+            if (newPath != null && newPath.getPoints() != null && !newPath.getPoints().isEmpty()) {
+                GeoPath newGeoPath = new GeoPath(newPath);
+                mission.setPath(newGeoPath);
+                // Do not overwrite the original path, a manual waypoint is a detour
+                // mission.setOriginalPath(newGeoPath); 
+                mission.setCurrentSegmentTargetIndex(1);
+                mission.setAssigned(true);
+                mission.setReturning(false); // A manual destination is a new delivery, not a return
+                mission.setLastUpdateTime(System.currentTimeMillis());
+                System.out.println("SharedData: Assigned new manual path to drone " + droneId);
+            } else {
+                System.err.println("SharedData: setManualWaypoint - Failed to create a manual path for drone " + droneId);
+            }
+        }
+    }
 }

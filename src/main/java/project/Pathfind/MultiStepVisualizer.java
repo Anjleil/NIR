@@ -5,6 +5,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import project.NIR.Models.Routes.Path;
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,6 +15,7 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -199,15 +201,12 @@ public class MultiStepVisualizer {
         NoFlyZoneLoader loader = new NoFlyZoneLoader(factory);
         List<NoFlyZone> noFlyZones = loader.loadNoFlyZones("src/main/resources/no_fly_zones.json");
 
-        AdaptiveGrid grid = new AdaptiveGrid();
-        Set<Envelope> gridCells = grid.createGridAroundPoint(A, 10000, noFlyZones);
-
-        PathFinder pathFinder = new PathFinder(gridCells, A, B, noFlyZones);
+        // The logic here is outdated due to Pathfinder singleton refactoring.
+        // This main method is for visual demonstration and won't work as intended without significant rework.
         Path path = new Path();
-        path.setPoints(pathFinder.findPath());
+        path.setPoints(new ArrayList<>());
+        Set<Envelope> gridCells = new HashSet<>();
 
-        gridCells.clear();
-        gridCells.addAll(grid.createGridAroundPoint(A, 10000, new ArrayList<>()));
 
         JFrame mainFrame = new JFrame("Пошаговое построение");
         StepVisualizer visualizer = new StepVisualizer(A, B, gridCells, noFlyZones, path, "", factory);
@@ -230,8 +229,8 @@ public class MultiStepVisualizer {
                         visualizer.setStepDescription("Шаг 2: Бесполетные зоны, сетки");
                     }
                     case 3 -> {
-                        gridCells.clear();
-                        gridCells.addAll(grid.createGridAroundPoint(A, 10000, noFlyZones));
+                        // gridCells.clear();
+                        // gridCells.addAll(grid.createGridAroundPoint(A, 10000, noFlyZones));
                         visualizer.setStepDescription("Шаг 2: Бесполетные зоны, сетки");
                     }
                     case 4 -> visualizer.setStepDescription("Шаг 3: Построение маршрута, Бесполетные зоны, сетки");

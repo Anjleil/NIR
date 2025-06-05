@@ -115,6 +115,9 @@ public class DroneHandler implements Runnable {
 
                 if (currentMissionStateInSharedData != null) {
                     currentMissionStateInSharedData.setBatteryLevel(dataFromDrone.getBatteryLevel());
+                    currentMissionStateInSharedData.setAltitude(dataFromDrone.getAltitude());
+                    currentMissionStateInSharedData.setSpeed(dataFromDrone.getSpeed());
+
                     if (reportedSegmentIndexFromDrone == 0 && currentMissionStateInSharedData.isAssigned()) {
                         
                         GeoPosition finalPosition = currentMissionStateInSharedData.getCurrentDronePosition();

@@ -3,12 +3,15 @@ package project.NIR.Models.Panes;
 import project.NIR.Models.Data.ActiveMission;
 import project.NIR.Models.Data.SharedData;
 import project.NIR.Models.MapModel;
+import project.NIR.Utils.GeoUtils;
+import org.jxmapviewer.viewer.GeoPosition;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 import java.util.stream.Collectors;
 
 public class InformationPane extends RoundedPanel {
@@ -29,6 +32,9 @@ public class InformationPane extends RoundedPanel {
     private final JLabel payloadLabel;
     private final JLabel assignedMissionLabel;
     private final JLabel altitudeLabel;
+    private final JLabel speedLabel;
+    private final JLabel etaLabel;
+    private final JButton manualControlButton;
 
     public InformationPane() {
         this.cardLayout = new CardLayout();
@@ -54,6 +60,12 @@ public class InformationPane extends RoundedPanel {
         assignedMissionLabel.setFont(font);
         altitudeLabel = new JLabel();
         altitudeLabel.setFont(font);
+        speedLabel = new JLabel();
+        speedLabel.setFont(font);
+        etaLabel = new JLabel();
+        etaLabel.setFont(font);
+
+        manualControlButton = createButton("Ручное управление");
 
         cardPanel.add(createGeneralInfoPanel(), GENERAL_INFO_PANEL);
         cardPanel.add(createDroneInfoPanel(), DRONE_INFO_PANEL);
@@ -63,6 +75,20 @@ public class InformationPane extends RoundedPanel {
         this.setBackground(new Color(230, 230, 230));
 
         showGeneralInfo();
+    }
+
+    public void update() {
+        Integer selectedDroneId = MapModel.getSelectedDroneId();
+        if (selectedDroneId != null) {
+            ActiveMission mission = SharedData.getActiveMissionByDroneId(selectedDroneId);
+            if (mission != null) {
+                showDroneInfo(mission);
+            } else {
+                showGeneralInfo();
+            }
+        } else {
+            showGeneralInfo();
+        }
     }
 
     public void showGeneralInfo() {
@@ -79,8 +105,11 @@ public class InformationPane extends RoundedPanel {
         batteryStatusLabel.setText(String.format("Заряд: %.0f%%", mission.getBatteryLevel()));
         payloadLabel.setText("Статус: " + (mission.isAssigned() ? "На миссии" : "Свободен"));
         assignedMissionLabel.setText("Цель: " + (mission.isReturning() ? "Возврат на базу" : "Доставка"));
-        altitudeLabel.setText("Высота: 100 м"); // Placeholder
+        altitudeLabel.setText(String.format("Высота: %.0f м", mission.getAltitude()));
+        speedLabel.setText(String.format("Скорость: %.0f м/c", mission.getSpeed()));
+        etaLabel.setText("ETA: " + calculateETA(mission));
 
+        updateDroneInfoPanelAppearance();
         cardLayout.show(cardPanel, DRONE_INFO_PANEL);
     }
 
@@ -94,6 +123,10 @@ public class InformationPane extends RoundedPanel {
         averageDeliveryTimeLabel.setText("Среднее время доставки: 14 мин");
     }
 
+    public void updateDroneInfoPanelAppearance() {
+        boolean manualMode = MapModel.isManualControlActive();
+        manualControlButton.setBackground(manualMode ? new Color(200, 220, 255) : new Color(230, 230, 230));
+    }
 
     private JPanel createGeneralInfoPanel() {
         JPanel infoPanel = new RoundedPanel();
@@ -151,7 +184,9 @@ public class InformationPane extends RoundedPanel {
         });
 
         JButton recalculateRouteButton = createButton("Пересчитать маршрут");
-        JButton manualControlButton = createButton("Ручное управление");
+        recalculateRouteButton.setEnabled(false);
+
+        manualControlButton.addActionListener(e -> MapModel.toggleManualControl());
 
         leftPanel.add(recallDroneButton);
         leftPanel.add(recalculateRouteButton);
@@ -169,10 +204,36 @@ public class InformationPane extends RoundedPanel {
         rightPanel.add(payloadLabel);
         rightPanel.add(assignedMissionLabel);
         rightPanel.add(altitudeLabel);
+        rightPanel.add(speedLabel);
+        rightPanel.add(etaLabel);
 
         infoPanel.add(leftPanel, BorderLayout.WEST);
         infoPanel.add(rightPanel, BorderLayout.CENTER);
         return infoPanel;
+    }
+
+    private String calculateETA(ActiveMission mission) {
+        if (!mission.isAssigned() || mission.getPathPoints() == null || mission.getSpeed() == 0) {
+            return "-";
+        }
+
+        double remainingDistance = 0;
+        List<GeoPosition> pathPoints = mission.getPathPoints();
+        int targetIndex = mission.getCurrentSegmentTargetIndex();
+
+        // Distance from current pos to next waypoint
+        remainingDistance += GeoUtils.calculateDistance(mission.getCurrentDronePosition(), pathPoints.get(targetIndex));
+
+        // Distance for all subsequent segments
+        for (int i = targetIndex; i < pathPoints.size() - 1; i++) {
+            remainingDistance += GeoUtils.calculateDistance(pathPoints.get(i), pathPoints.get(i + 1));
+        }
+
+        long seconds = (long) (remainingDistance / mission.getSpeed());
+        long minutes = seconds / 60;
+        seconds %= 60;
+
+        return String.format("%d мин %d сек", minutes, seconds);
     }
 
 

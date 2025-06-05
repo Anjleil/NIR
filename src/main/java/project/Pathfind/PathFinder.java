@@ -5,110 +5,39 @@ import org.locationtech.jts.geom.*;
 import java.util.*;
 
 public class PathFinder {
-    private final Set<Envelope> gridCells;
-    private final GeometryFactory geometryFactory;
+    
+    private final Map<Point, List<Point>> graph;
     private final Point start;
     private final Point goal;
-    private final List<NoFlyZone> noFlyZones;
-    double maxDistance = 0.02; // Радиус соседства (примерно 500 м)
 
-    public PathFinder(Set<Envelope> gridCells, Point start, Point goal, List<NoFlyZone> noFlyZones) {
-        this.geometryFactory = new GeometryFactory();
-        this.gridCells = gridCells;
+    public PathFinder(Map<Point, List<Point>> graph, Point start, Point goal) {
+        this.graph = graph;
         this.start = start;
         this.goal = goal;
-        this.noFlyZones = noFlyZones;
     }
 
     public List<Point> findPath() {
-        // Список всех узлов
-        List<Point> nodes = getGridNodes();
-
-        // Карта рёбер графа
-        Map<Point, List<Point>> graph = buildGraph(nodes);
-
-        List<Point> path = aStar(graph, start, goal);
-
-        if (path.isEmpty()) {
-//            throw new IllegalStateException("Cannot find path: " + start + ":" + goal);
-            System.out.println("Cannot find path: " + start + ":" + goal);
+        if (graph == null || graph.isEmpty()) {
+            System.err.println("PathFinder: Graph is null or empty, cannot find path.");
+            return new ArrayList<>();
         }
+        return aStar(graph, start, goal);
+    }
 
-        // Реализация A*
+    private double heuristic(Point p1, Point p2) {
+        return p1.distance(p2); // Euclidean distance
+    }
+
+    private List<Point> reconstructPath(Node node) {
+        List<Point> path = new ArrayList<>();
+        while (node != null) {
+            path.add(node.point);
+            node = node.previous;
+        }
+        Collections.reverse(path);
         return path;
     }
-
-    private List<Point> getGridNodes() {
-        List<Point> nodes = new ArrayList<>();
-        for (Envelope cell : gridCells) {
-
-//            Point node = new GeometryFactory().createPoint(new Coordinate(cell.getMinX(), cell.getMinY()));
-            Point node = new GeometryFactory().createPoint(new Coordinate(cell.centre()));
-            if (!isInsideNoFlyZone(node)) {
-                nodes.add(node);
-            }
-}
-
-//        for (NoFlyZone zone : noFlyZones) {
-//            Coordinate[] coordinates = zone.getBoundaryPolygon().getCoordinates();
-//            for (Coordinate coord : coordinates) {
-//                nodes.add(geometryFactory.createPoint(coord));
-//            }
-//        }
-        return nodes;
-    }
-
-    private Map<Point, List<Point>> buildGraph(List<Point> nodes) {
-        Map<Point, List<Point>> graph = new HashMap<>();
-
-        // Добавляем A и B в список узлов
-        nodes.add(start);
-        nodes.add(goal);
-
-        // Проверяем, что точки A и B не внутри бесполетных зон
-        if (isInsideNoFlyZone(start)) {
-            throw new IllegalArgumentException("Start point A is inside a no-fly zone!");
-        }
-        if (isInsideNoFlyZone(goal)) {
-            throw new IllegalArgumentException("Goal point B is inside a no-fly zone!");
-        }
-
-        // Построение рёбер графа
-        for (Point node1 : nodes) {
-            List<Point> neighbors = new ArrayList<>();
-            for (Point node2 : nodes) {
-                if (!node1.equals(node2) && node1.distance(node2) <= maxDistance && isEdgeValid(node1, node2)) {
-                    neighbors.add(node2);
-                }
-            }
-            graph.put(node1, neighbors);
-        }
-        return graph;
-    }
-
-
-    private boolean isInsideNoFlyZone(Point point) {
-        for (NoFlyZone zone : noFlyZones) {
-            if (zone.getBoundaryPolygon().contains(point)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isEdgeValid(Point node1, Point node2) {
-        LineString edge = geometryFactory.createLineString(new Coordinate[]{
-                node1.getCoordinate(), node2.getCoordinate()
-        });
-
-        for (NoFlyZone zone : noFlyZones) {
-            if (edge.intersects(zone.getBoundaryPolygon())) {
-                return false; // Если ребро пересекает бесполетную зону
-            }
-        }
-        return true; // Ребро безопасно
-    }
-
+    
     private List<Point> aStar(Map<Point, List<Point>> graph, Point start, Point goal) {
         PriorityQueue<Node> openSet = new PriorityQueue<>(Comparator.comparingDouble(n -> n.f));
         Map<Point, Node> allNodes = new HashMap<>();
@@ -124,7 +53,9 @@ public class PathFinder {
                 return reconstructPath(current);
             }
 
-            for (Point neighbor : graph.getOrDefault(current.point, new ArrayList<>())) {
+            if (!graph.containsKey(current.point)) continue;
+
+            for (Point neighbor : graph.get(current.point)) {
                 double tentativeG = current.g + current.point.distance(neighbor);
 
                 Node neighborNode = allNodes.getOrDefault(neighbor, new Node(neighbor));
@@ -141,28 +72,14 @@ public class PathFinder {
             }
         }
 
-        return new ArrayList<>(); // Путь не найден
-    }
-
-    private double heuristic(Point p1, Point p2) {
-        return p1.distance(p2); // Евклидово расстояние
-    }
-
-    private List<Point> reconstructPath(Node node) {
-        List<Point> path = new ArrayList<>();
-        while (node != null) {
-            path.add(node.point);
-            node = node.previous;
-        }
-        Collections.reverse(path);
-        return path;
+        return new ArrayList<>(); // Path not found
     }
 
     private static class Node {
         Point point;
         Node previous;
-        double g; // Расстояние от старта
-        double f; // Оценка полного пути (g + h)
+        double g; // distance from start
+        double f; // total estimated cost (g + h)
 
         public Node(Point point) {
             this(point, null, Double.MAX_VALUE, Double.MAX_VALUE);

@@ -15,6 +15,7 @@ public class MapModel {
     private static MapViewer mapViewer;
     private static InformationPane infoPane;
     private static Integer selectedDroneId = null;
+    private static boolean manualControlActive = false;
 
     public static JLayeredPane createPane() throws IOException {
         JLayeredPane layeredPane = new JLayeredPane();
@@ -53,6 +54,13 @@ public class MapModel {
     }
 
     public static void setSelectedDroneId(Integer droneId) {
+        if (selectedDroneId != null && !selectedDroneId.equals(droneId) && manualControlActive) {
+            toggleManualControl();
+        }
+        if (droneId == null && manualControlActive) {
+            toggleManualControl();
+        }
+
         selectedDroneId = droneId;
 
         if (infoPane != null) {
@@ -71,7 +79,22 @@ public class MapModel {
     
     public static void updateInfoPane() {
         if (infoPane != null) {
-            infoPane.updateGeneralInfo();
+            infoPane.update();
+        }
+    }
+
+    public static boolean isManualControlActive() {
+        return manualControlActive;
+    }
+
+    public static void toggleManualControl() {
+        if (selectedDroneId == null) {
+            manualControlActive = false;
+        } else {
+            manualControlActive = !manualControlActive;
+        }
+        if (infoPane != null) {
+            infoPane.updateDroneInfoPanelAppearance();
         }
     }
 }

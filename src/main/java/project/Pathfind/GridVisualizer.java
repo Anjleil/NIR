@@ -5,6 +5,8 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import project.NIR.Models.Routes.Path;
+import project.NIR.Utils.Pathfinder;
 
 import javax.swing.*;
 import java.awt.*;
@@ -128,13 +130,18 @@ public class GridVisualizer extends JPanel {
     }
 
     private void updatePath() {
-        PathFinder pathFinder = new PathFinder(gridCells, A, B, noFlyZones);
-
+        // This visualizer is now incompatible with the singleton Pathfinder logic.
+        // It's left here for potential future adaptation but will not work out-of-the-box.
+        // To make it work, it would need to get the pre-built grid from the singleton
+        // or have the singleton logic injected.
+        // For now, we create an empty path to avoid errors.
+        
         this.path = new Path();
-        this.path.setPoints(pathFinder.findPath());
+        this.path.setPoints(new java.util.ArrayList<>());
 
-        System.out.println(path.toString());
 
+        System.out.println("GridVisualizer is for visual testing and is not compatible with the new singleton Pathfinder out of the box.");
+        
         repaint(); // Перерисовываем панель
     }
 
@@ -234,11 +241,11 @@ public class GridVisualizer extends JPanel {
         if (path != null && !path.isEmpty()) {
             g2d.setColor(Color.ORANGE);
             Path2D route = new Path2D.Double();
-            Point first = path.get(0);
+            Point first = path.getPoints().get(0);
             route.moveTo(transformX(first.getX(), centerX), transformY(first.getY(), centerY));
 
-            for (int i = 1; i < path.size(); i++) {
-                Point p = path.get(i);
+            for (int i = 1; i < path.getPoints().size(); i++) {
+                Point p = path.getPoints().get(i);
                 route.lineTo(transformX(p.getX(), centerX), transformY(p.getY(), centerY));
             }
             g2d.draw(route);

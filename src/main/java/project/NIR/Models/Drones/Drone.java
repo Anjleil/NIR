@@ -28,7 +28,9 @@ public abstract class Drone {
     private int currentSegmentTargetIndex = 0;
     private GeoPosition currentPosition;
 
-    private static final double SPEED_METERS_PER_SECOND = 25.0;
+    private static final double CRUISING_ALTITUDE = 100.0;
+    private static final double VERTICAL_SPEED = 10.0; // meters per second
+    private static final double HORIZONTAL_SPEED = 25.0; // SPEED_METERS_PER_SECOND
     private static final long UPDATE_INTERVAL_MS = 2000;
 
     public abstract void move(double newLatitude, double newLongitude, double newAltitude);
@@ -67,11 +69,19 @@ public abstract class Drone {
             return;
         }
 
+        // First, handle altitude change
+        if (altitude < CRUISING_ALTITUDE) {
+            altitude += VERTICAL_SPEED * (UPDATE_INTERVAL_MS / 1000.0);
+            if (altitude > CRUISING_ALTITUDE) {
+                altitude = CRUISING_ALTITUDE;
+            }
+        }
+
         GeoPosition targetWaypoint = assignedPathPoints.get(currentSegmentTargetIndex);
         System.out.println("Drone " + id + " moveAlongPath: CurrentPos=" + currentPosition + ", TargetSegIdx=" + currentSegmentTargetIndex + ", TargetWaypoint=" + targetWaypoint + " (Path size: " + assignedPathPoints.size() + ")");
 
         double distanceToTargetWaypoint = GeoUtils.calculateDistance(currentPosition, targetWaypoint);
-        double distanceToTravelThisTick = SPEED_METERS_PER_SECOND * (UPDATE_INTERVAL_MS / 1000.0);
+        double distanceToTravelThisTick = HORIZONTAL_SPEED * (UPDATE_INTERVAL_MS / 1000.0);
 
         if (distanceToTravelThisTick > 0) {
             batteryLevel -= (distanceToTravelThisTick / 2000.0) * 10.0;
@@ -211,7 +221,7 @@ public abstract class Drone {
     }
 
     public DroneData createPackage(){
-        return new DroneData(getId(), getCurrentLatitude(), getCurrentLongitude(), getAltitude(), 0, (int) getBatteryLevel(), getCurrentSegmentTargetIndex());
+        return new DroneData(getId(), getCurrentLatitude(), getCurrentLongitude(), getAltitude(), HORIZONTAL_SPEED, (int) getBatteryLevel(), getCurrentSegmentTargetIndex());
     }
 
     private void sendMessage(){
