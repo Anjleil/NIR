@@ -13,12 +13,15 @@ public class RoutePainter implements Painter<JXMapViewer> {
     private final List<GeoPosition> route;
     private final GeoPosition currentDronePosition;
     private final int currentSegmentTargetIndex;
+    private final boolean isSelected;
     private final Color routeColor = Color.GRAY;
+    private final Color selectedRouteColor = new Color(28, 158, 28);
 
-    public RoutePainter(List<GeoPosition> route, GeoPosition currentDronePosition, int currentSegmentTargetIndex) {
+    public RoutePainter(List<GeoPosition> route, GeoPosition currentDronePosition, int currentSegmentTargetIndex, boolean isSelected) {
         this.route = route;
         this.currentDronePosition = currentDronePosition;
         this.currentSegmentTargetIndex = currentSegmentTargetIndex;
+        this.isSelected = isSelected;
     }
 
     @Override
@@ -60,9 +63,9 @@ public class RoutePainter implements Painter<JXMapViewer> {
             traveledPath.lineTo(dronePos.getX(), dronePos.getY());
         }
         
-        Stroke dashed = new BasicStroke(2, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 0, new float[]{9}, 0);
+        Stroke dashed = new BasicStroke(3, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND, 0, new float[]{9}, 0);
         g.setStroke(dashed);
-        g.setColor(routeColor);
+        g.setColor(isSelected ? selectedRouteColor : routeColor);
         g.draw(traveledPath);
 
 
@@ -79,8 +82,8 @@ public class RoutePainter implements Painter<JXMapViewer> {
             remainingPath.lineTo(p.getX(), p.getY());
         }
 
-        g.setStroke(new BasicStroke(2));
-        g.setColor(routeColor);
+        g.setStroke(new BasicStroke(3));
+        g.setColor(isSelected ? selectedRouteColor : routeColor);
         g.draw(remainingPath);
 
         g.dispose();

@@ -6,6 +6,7 @@ import project.NIR.Models.Data.ActiveMission;
 import project.NIR.Models.Drones.DroneData;
 import project.NIR.Models.Data.ServerData;
 import project.NIR.Models.Data.SharedData;
+import project.NIR.Models.Warehouse;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -113,14 +114,25 @@ public class DroneHandler implements Runnable {
                 ActiveMission currentMissionStateInSharedData = SharedData.getActiveMissionByDroneId(dataFromDrone.getId());
 
                 if (currentMissionStateInSharedData != null) {
+                    currentMissionStateInSharedData.setBatteryLevel(dataFromDrone.getBatteryLevel());
                     if (reportedSegmentIndexFromDrone == 0 && currentMissionStateInSharedData.isAssigned()) {
-                        // Drone signals path completion for the mission it was on.
-                        System.out.println("DroneHandler: Drone " + dataFromDrone.getId() + " reported path completion (segment index 0). Marking as idle in SharedData.");
-                        currentMissionStateInSharedData.setPath(null);
-                        currentMissionStateInSharedData.setAssigned(false);
-                        currentMissionStateInSharedData.setCurrentSegmentTargetIndex(0); // Reflect drone's state
-                        this.lastSentPathToDrone = null; // Drone is now idle, no path is "active" for it
-                        sendDefaultCommand(); // Acknowledge, drone is now idle.
+                        
+                        GeoPosition finalPosition = currentMissionStateInSharedData.getCurrentDronePosition();
+                        Warehouse homeWarehouse = SharedData.findWarehouseForDrone(dataFromDrone.getId());
+                        
+                        if (homeWarehouse != null && homeWarehouse.getLocation().equals(finalPosition)) {
+                            System.out.println("DroneHandler: Drone " + dataFromDrone.getId() + " has returned to warehouse " + homeWarehouse.getName() + " and is now idle.");
+                            currentMissionStateInSharedData.setPath(null);
+                            currentMissionStateInSharedData.setOriginalPath(null);
+                            currentMissionStateInSharedData.setAssigned(false);
+                            currentMissionStateInSharedData.setReturning(false);
+                            currentMissionStateInSharedData.setCurrentSegmentTargetIndex(0);
+                            this.lastSentPathToDrone = null;
+                            sendDefaultCommand();
+                        } else {
+                            System.out.println("DroneHandler: Drone " + dataFromDrone.getId() + " completed a path (delivery). Recalling to base.");
+                            SharedData.recallDrone(dataFromDrone.getId(), false);
+                        }
 
                     } else if (currentMissionStateInSharedData.isAssigned() && 
                                currentMissionStateInSharedData.getPathPoints() != null && 

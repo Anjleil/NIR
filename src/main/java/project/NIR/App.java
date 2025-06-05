@@ -21,6 +21,7 @@ public class App {
         Timer timer = new Timer(500, e -> {
             if (MapModel.getMapViewer() != null) {
                 MapModel.getMapViewer().updateMapDisplay();
+                MapModel.updateInfoPane();
             }
             frame.repaint();
 

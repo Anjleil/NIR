@@ -23,6 +23,7 @@ public abstract class Drone {
     private double currentLatitude;
     private double currentLongitude;
     private double altitude;
+    private double batteryLevel = 100.0;
     private List<GeoPosition> assignedPathPoints;
     private int currentSegmentTargetIndex = 0;
     private GeoPosition currentPosition;
@@ -71,6 +72,11 @@ public abstract class Drone {
 
         double distanceToTargetWaypoint = GeoUtils.calculateDistance(currentPosition, targetWaypoint);
         double distanceToTravelThisTick = SPEED_METERS_PER_SECOND * (UPDATE_INTERVAL_MS / 1000.0);
+
+        if (distanceToTravelThisTick > 0) {
+            batteryLevel -= (distanceToTravelThisTick / 2000.0) * 10.0;
+            if (batteryLevel < 0) batteryLevel = 0;
+        }
 
         if (distanceToTravelThisTick >= distanceToTargetWaypoint) {
             currentPosition = targetWaypoint;
@@ -205,7 +211,7 @@ public abstract class Drone {
     }
 
     public DroneData createPackage(){
-        return new DroneData(getId(), getCurrentLatitude(), getCurrentLongitude(), getAltitude(), 0, 0, getCurrentSegmentTargetIndex());
+        return new DroneData(getId(), getCurrentLatitude(), getCurrentLongitude(), getAltitude(), 0, (int) getBatteryLevel(), getCurrentSegmentTargetIndex());
     }
 
     private void sendMessage(){

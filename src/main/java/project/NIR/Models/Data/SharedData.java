@@ -5,6 +5,10 @@ import project.NIR.Models.Routes.Path;
 import project.NIR.Models.Warehouse;
 import org.jxmapviewer.viewer.GeoPosition;
 import project.NIR.Utils.GeoUtils;
+import project.NIR.Utils.Pathfinder;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -97,9 +101,11 @@ public class SharedData {
                     
                     // Assign client mission path to this drone
                     drone.setPath(clientMission.getPath());
+                    drone.setOriginalPath(clientMission.getPath());
                     drone.setCurrentDronePosition(clientMission.getPathPoints().get(0)); // Set drone to start of new path
                     drone.setCurrentSegmentTargetIndex(1);
                     drone.setAssigned(true);
+                    drone.setReturning(false); // It's a delivery mission
                     drone.setLastUpdateTime(System.currentTimeMillis());
 
                     activeMissions.remove(tempMissionKey); // Remove the original client mission entry using its negative key
@@ -224,6 +230,69 @@ public class SharedData {
             );
              // This doesn't clear idle drones or reset counters, which might be desired for "clearPaths"
             System.out.println("SharedData: Deprecated clearPaths() executed. Some missions potentially cleared.");
+        }
+    }
+
+    public static Warehouse findWarehouseForDrone(int droneId) {
+        synchronized (lock) {
+            for (Warehouse warehouse : warehouses) {
+                if (warehouse.getResidentDroneIdsView().contains(droneId)) {
+                    return warehouse;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static void recallDrone(int droneId, boolean forceReturn) {
+        synchronized (lock) {
+            ActiveMission mission = getActiveMissionByDroneId(droneId);
+            if (mission == null) {
+                System.err.println("SharedData: recallDrone - No mission found for drone ID: " + droneId);
+                return;
+            }
+
+            if (mission.isReturning()) {
+                System.out.println("SharedData: Drone " + droneId + " is already returning. No action needed.");
+                return;
+            }
+
+            if (!mission.isAssigned() && !forceReturn) {
+                System.out.println("SharedData: recallDrone - Drone " + droneId + " is already idle. No action needed.");
+                return;
+            }
+            
+            GeoPath originalPath = mission.getOriginalPath();
+            if (originalPath == null || originalPath.getPoints() == null || originalPath.getPoints().isEmpty()) {
+                 System.err.println("SharedData: recallDrone - No original path found for drone " + droneId + ". Cannot reverse path.");
+                 return;
+            }
+
+            System.out.println("SharedData: Recalling drone " + droneId + " by reversing its path.");
+
+            List<GeoPosition> originalPathPoints = originalPath.getPoints();
+            int lastWaypointIndex = Math.max(0, mission.getCurrentSegmentTargetIndex() - 1);
+
+            List<GeoPosition> returnPathPoints = new ArrayList<>();
+            returnPathPoints.add(mission.getCurrentDronePosition());
+
+            List<GeoPosition> visitedWaypoints = new ArrayList<>(originalPathPoints.subList(0, lastWaypointIndex + 1));
+            Collections.reverse(visitedWaypoints);
+            returnPathPoints.addAll(visitedWaypoints);
+
+            Path returnPath = new Path();
+            List<Point> jtsPoints = new ArrayList<>();
+            for (GeoPosition geoPos : returnPathPoints) {
+                jtsPoints.add(new GeometryFactory().createPoint(new Coordinate(geoPos.getLongitude(), geoPos.getLatitude())));
+            }
+            returnPath.setPoints(jtsPoints);
+
+            mission.setPath(new GeoPath(returnPath));
+            mission.setCurrentSegmentTargetIndex(1); 
+            mission.setAssigned(true); 
+            mission.setReturning(true);
+            mission.setLastUpdateTime(System.currentTimeMillis());
+            System.out.println("SharedData: Assigned new return path to drone " + droneId);
         }
     }
 }

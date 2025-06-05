@@ -1,5 +1,7 @@
 package project.NIR.Models;
 
+import project.NIR.Models.Data.ActiveMission;
+import project.NIR.Models.Data.SharedData;
 import project.NIR.Models.Panes.InformationPane;
 import project.NIR.Models.Panes.MapViewer;
 
@@ -10,39 +12,32 @@ import java.awt.event.ComponentEvent;
 import java.io.IOException;
 
 public class MapModel {
-    private static MapViewer mapViewer; // Храним ссылку на MapViewer
+    private static MapViewer mapViewer;
+    private static InformationPane infoPane;
+    private static Integer selectedDroneId = null;
 
     public static JLayeredPane createPane() throws IOException {
-
-
-
         JLayeredPane layeredPane = new JLayeredPane();
         layeredPane.setPreferredSize(new Dimension(1200, 1000));
 
-        // Создаем информационную панель
-        JPanel info = InformationPane.createInformationPane(100, 100);
+        infoPane = new InformationPane();
+        JPanel infoPanel = infoPane;
 
-        // Создаем карту
-        mapViewer = new MapViewer(); // Инициализация MapViewer
+        mapViewer = new MapViewer();
         JPanel mapPanel = mapViewer.getMapViewer();
 
-        // Устанавливаем начальные размеры для карты и добавляем ее в слой
         mapPanel.setBounds(0, 0, layeredPane.getPreferredSize().width, layeredPane.getPreferredSize().height);
         layeredPane.add(mapPanel, JLayeredPane.DEFAULT_LAYER);
 
-        // Устанавливаем размеры информационной панели и добавляем ее
-        info.setBounds(50, layeredPane.getPreferredSize().height - 200, layeredPane.getPreferredSize().width - 200, 160);
-        layeredPane.add(info, JLayeredPane.PALETTE_LAYER);
+        infoPanel.setBounds(50, layeredPane.getPreferredSize().height - 200, layeredPane.getPreferredSize().width - 200, 160);
+        layeredPane.add(infoPanel, JLayeredPane.PALETTE_LAYER);
 
-        // Добавляем обработчик изменения размера для карты
         layeredPane.addComponentListener(new ComponentAdapter() {
             @Override
             public void componentResized(ComponentEvent e) {
-                // Обновляем размер карты в соответствии с новым размером окна
                 mapPanel.setBounds(0, 0, layeredPane.getWidth(), layeredPane.getHeight());
-                info.setBounds(50, layeredPane.getHeight() - 160, layeredPane.getWidth() - 100, 160);
-
-                info.setBackground(new Color(230, 230, 230)); // Светлый фон
+                infoPanel.setBounds(50, layeredPane.getHeight() - 160, layeredPane.getWidth() - 100, 160);
+                infoPanel.setBackground(new Color(230, 230, 230));
             }
         });
 
@@ -51,5 +46,32 @@ public class MapModel {
 
     public static MapViewer getMapViewer() {
         return mapViewer;
+    }
+
+    public static Integer getSelectedDroneId() {
+        return selectedDroneId;
+    }
+
+    public static void setSelectedDroneId(Integer droneId) {
+        selectedDroneId = droneId;
+
+        if (infoPane != null) {
+            if (selectedDroneId != null) {
+                ActiveMission mission = SharedData.getActiveMissionByDroneId(selectedDroneId);
+                infoPane.showDroneInfo(mission);
+            } else {
+                infoPane.showGeneralInfo();
+            }
+        }
+
+        if (mapViewer != null) {
+            mapViewer.updateMapDisplay();
+        }
+    }
+    
+    public static void updateInfoPane() {
+        if (infoPane != null) {
+            infoPane.updateGeneralInfo();
+        }
     }
 }

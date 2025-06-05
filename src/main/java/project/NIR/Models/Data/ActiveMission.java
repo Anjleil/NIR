@@ -12,10 +12,13 @@ import java.util.List;
 public class ActiveMission {
     private int droneId;
     private GeoPath path;
+    private GeoPath originalPath;
     private GeoPosition currentDronePosition;
     private int currentSegmentTargetIndex; // Index of the next waypoint in the path's points list
     private long lastUpdateTime;
     private boolean assigned; // To track if a drone has been assigned this mission
+    private boolean isReturning = false;
+    private double batteryLevel = 100.0;
 
     // Constructor for a mission created from a client request (initially unassigned to a specific drone)
     public ActiveMission(GeoPath path) {

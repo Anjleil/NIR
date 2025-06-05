@@ -1,55 +1,180 @@
 package project.NIR.Models.Panes;
 
+import project.NIR.Models.Data.ActiveMission;
+import project.NIR.Models.Data.SharedData;
+import project.NIR.Models.MapModel;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.stream.Collectors;
 
-public class InformationPane {
+public class InformationPane extends RoundedPanel {
+    private final CardLayout cardLayout;
+    private final JPanel cardPanel;
 
-    public static JPanel createInformationPane(int width, int height) {
+    private static final String GENERAL_INFO_PANEL = "GENERAL_INFO_PANEL";
+    private static final String DRONE_INFO_PANEL = "DRONE_INFO_PANEL";
 
+    // Components for General Info
+    private final JLabel totalMissionsLabel;
+    private final JLabel availableDronesLabel;
+    private final JLabel averageDeliveryTimeLabel;
+
+    // Components for Drone Info
+    private final JLabel droneIdLabel;
+    private final JLabel batteryStatusLabel;
+    private final JLabel payloadLabel;
+    private final JLabel assignedMissionLabel;
+    private final JLabel altitudeLabel;
+
+    public InformationPane() {
+        this.cardLayout = new CardLayout();
+        this.cardPanel = new JPanel(cardLayout);
+        cardPanel.setOpaque(false);
+        
+        Font font = new Font("Arial", Font.BOLD, 16);
+
+        totalMissionsLabel = new JLabel();
+        totalMissionsLabel.setFont(font);
+        availableDronesLabel = new JLabel();
+        availableDronesLabel.setFont(font);
+        averageDeliveryTimeLabel = new JLabel();
+        averageDeliveryTimeLabel.setFont(font);
+        
+        droneIdLabel = new JLabel();
+        droneIdLabel.setFont(font);
+        batteryStatusLabel = new JLabel();
+        batteryStatusLabel.setFont(font);
+        payloadLabel = new JLabel();
+        payloadLabel.setFont(font);
+        assignedMissionLabel = new JLabel();
+        assignedMissionLabel.setFont(font);
+        altitudeLabel = new JLabel();
+        altitudeLabel.setFont(font);
+
+        cardPanel.add(createGeneralInfoPanel(), GENERAL_INFO_PANEL);
+        cardPanel.add(createDroneInfoPanel(), DRONE_INFO_PANEL);
+
+        this.setLayout(new BorderLayout());
+        this.add(cardPanel, BorderLayout.CENTER);
+        this.setBackground(new Color(230, 230, 230));
+
+        showGeneralInfo();
+    }
+
+    public void showGeneralInfo() {
+        updateGeneralInfo();
+        cardLayout.show(cardPanel, GENERAL_INFO_PANEL);
+    }
+
+    public void showDroneInfo(ActiveMission mission) {
+        if (mission == null) {
+            showGeneralInfo();
+            return;
+        }
+        droneIdLabel.setText("ID дрона: " + mission.getDroneId());
+        batteryStatusLabel.setText(String.format("Заряд: %.0f%%", mission.getBatteryLevel()));
+        payloadLabel.setText("Статус: " + (mission.isAssigned() ? "На миссии" : "Свободен"));
+        assignedMissionLabel.setText("Цель: " + (mission.isReturning() ? "Возврат на базу" : "Доставка"));
+        altitudeLabel.setText("Высота: 100 м"); // Placeholder
+
+        cardLayout.show(cardPanel, DRONE_INFO_PANEL);
+    }
+
+    public void updateGeneralInfo() {
+        long activeMissions = SharedData.getAllActiveMissions().stream().filter(ActiveMission::isAssigned).count();
+        long totalDrones = SharedData.getAllActiveMissions().stream().filter(m -> m.getDroneId() > 0).count();
+        long availableDrones = totalDrones - activeMissions;
+
+        totalMissionsLabel.setText("Активных миссий: " + activeMissions);
+        availableDronesLabel.setText("Дронов свободно: " + availableDrones);
+        averageDeliveryTimeLabel.setText("Среднее время доставки: 14 мин");
+    }
+
+
+    private JPanel createGeneralInfoPanel() {
         JPanel infoPanel = new RoundedPanel();
         infoPanel.setLayout(new BorderLayout());
+        infoPanel.setOpaque(false);
 
-        // Левая часть (кнопки)
+        // Left part (buttons)
         JPanel leftPanel = new RoundedPanel();
         leftPanel.setLayout(new GridLayout(1, 1, 10, 10));
         leftPanel.setPreferredSize(new Dimension(300, 200));
-        leftPanel.setBackground(new Color(230, 230, 230)); // Светлый фон
+        leftPanel.setBackground(new Color(230, 230, 230));
 
         JButton cancelAllMissionsButton = createButton("Отменить все миссии");
+        cancelAllMissionsButton.addActionListener(e -> {
+            SharedData.getAllActiveMissions().stream()
+                .filter(ActiveMission::isAssigned)
+                .forEach(mission -> SharedData.recallDrone(mission.getDroneId(), true));
+        });
         leftPanel.add(cancelAllMissionsButton);
 
-        // Правая часть (текстовая информация)
+        // Right part (text info)
         JPanel rightPanel = new RoundedPanel();
-        rightPanel.setLayout(new GridLayout(3, 1, 5, 5)); // Интервал между строками
+        rightPanel.setLayout(new GridLayout(3, 1, 5, 5));
         rightPanel.setPreferredSize(new Dimension(190, 180));
         rightPanel.setBackground(new Color(230, 230, 230));
         rightPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        JLabel totalMissionsLabel = new JLabel("Активных миссий: 2");
-        totalMissionsLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        JLabel availableDronesLabel = new JLabel("Дронов свободно: 6");
-        availableDronesLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        JLabel averageDeliveryTimeLabel = new JLabel("Среднее время доставки: 14 мин");
-        averageDeliveryTimeLabel.setFont(new Font("Arial", Font.BOLD, 16));
-
+        
         rightPanel.add(totalMissionsLabel);
         rightPanel.add(availableDronesLabel);
         rightPanel.add(averageDeliveryTimeLabel);
 
         infoPanel.add(leftPanel, BorderLayout.WEST);
         infoPanel.add(rightPanel, BorderLayout.CENTER);
-
-        // Добавляем кнопку для переключения панели
-        JButton showDroneInfoButton = createButton("Информация о дроне");
-        leftPanel.add(showDroneInfoButton);
-
-        // Логика переключения панели
-        showDroneInfoButton.addActionListener(e -> showDroneInfo(infoPanel));
-
+        
         return infoPanel;
     }
+
+    private JPanel createDroneInfoPanel() {
+        JPanel infoPanel = new RoundedPanel();
+        infoPanel.setLayout(new BorderLayout());
+        infoPanel.setOpaque(false);
+
+        // Left part (buttons)
+        JPanel leftPanel = new RoundedPanel();
+        leftPanel.setLayout(new GridLayout(3, 1, 10, 10));
+        leftPanel.setPreferredSize(new Dimension(300, 200));
+        leftPanel.setBackground(new Color(230, 230, 230));
+
+        JButton recallDroneButton = createButton("Отозвать дрон");
+        recallDroneButton.addActionListener(e -> {
+            Integer selectedDroneId = MapModel.getSelectedDroneId();
+            if (selectedDroneId != null) {
+                SharedData.recallDrone(selectedDroneId, true);
+            }
+        });
+
+        JButton recalculateRouteButton = createButton("Пересчитать маршрут");
+        JButton manualControlButton = createButton("Ручное управление");
+
+        leftPanel.add(recallDroneButton);
+        leftPanel.add(recalculateRouteButton);
+        leftPanel.add(manualControlButton);
+
+        // Right part (drone info)
+        JPanel rightPanel = new RoundedPanel();
+        rightPanel.setLayout(new GridLayout(5, 1, 5, 5));
+        rightPanel.setPreferredSize(new Dimension(190, 180));
+        rightPanel.setBackground(new Color(230, 230, 230));
+        rightPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
+
+        rightPanel.add(droneIdLabel);
+        rightPanel.add(batteryStatusLabel);
+        rightPanel.add(payloadLabel);
+        rightPanel.add(assignedMissionLabel);
+        rightPanel.add(altitudeLabel);
+
+        infoPanel.add(leftPanel, BorderLayout.WEST);
+        infoPanel.add(rightPanel, BorderLayout.CENTER);
+        return infoPanel;
+    }
+
 
     private static JButton createButton(String text) {
         JButton button = new JButton(text) {
@@ -72,57 +197,5 @@ public class InformationPane {
         button.setForeground(Color.BLACK);
         button.setFont(new Font("Arial", Font.BOLD, 16));
         return button;
-    }
-
-    private static void showDroneInfo(JPanel infoPanel) {
-        // Очищаем содержимое панели
-        infoPanel.removeAll();
-
-        // Левая часть (кнопки)
-        JPanel leftPanel = new RoundedPanel();
-        leftPanel.setLayout(new GridLayout(3, 1, 10, 10));
-        leftPanel.setPreferredSize(new Dimension(300, 200));
-        leftPanel.setBackground(new Color(230, 230, 230));
-
-        JButton recallDroneButton = createButton("Отозвать дрон");
-        JButton recalculateRouteButton = createButton("Пересчитать маршрут");
-        JButton manualControlButton = createButton("Ручное управление");
-
-        leftPanel.add(recallDroneButton);
-        leftPanel.add(recalculateRouteButton);
-        leftPanel.add(manualControlButton);
-
-        // Правая часть (информация о дроне)
-        JPanel rightPanel = new RoundedPanel();
-        rightPanel.setLayout(new GridLayout(3, 2, 5, 5));
-        rightPanel.setPreferredSize(new Dimension(190, 180));
-        rightPanel.setBackground(new Color(230, 230, 230));
-        rightPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
-
-        JLabel droneIdLabel = new JLabel("ID дрона: 1");
-        JLabel batteryStatusLabel = new JLabel("Заряд: 75%");
-        JLabel payloadLabel = new JLabel("Груз: 2.5 кг");
-        JLabel assignedMissionLabel = new JLabel("Миссия: Доставка посылки");
-        JLabel altitudeLabel = new JLabel("Высота: 120 м");
-
-        droneIdLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        batteryStatusLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        payloadLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        assignedMissionLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        altitudeLabel.setFont(new Font("Arial", Font.BOLD, 16));
-
-        rightPanel.add(droneIdLabel);
-        rightPanel.add(batteryStatusLabel);
-        rightPanel.add(payloadLabel);
-        rightPanel.add(assignedMissionLabel);
-        rightPanel.add(altitudeLabel);
-
-        // Добавляем обновлённые панели в infoPanel
-        infoPanel.add(leftPanel, BorderLayout.WEST);
-        infoPanel.add(rightPanel, BorderLayout.CENTER);
-
-        // Перерисовываем панель
-        infoPanel.revalidate();
-        infoPanel.repaint();
     }
 }
