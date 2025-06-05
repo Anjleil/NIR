@@ -19,33 +19,46 @@ public class DroneHandler implements Runnable {
     private final Socket clientSocket;
     private final ObjectInputStream packageStream; // For subsequent messages from drone
     private final ObjectOutputStream packageStreamOut; // For sending messages to drone
-    // private boolean initialResponseSentToDrone = false; // Can be removed or simplified
+    private List<GeoPosition> lastSentPathToDrone = null; // Stores the last path sent to this drone
 
     public DroneHandler(Socket socket, ObjectInputStream packageStream, ObjectOutputStream packageStreamOut, DroneData initialDroneData) throws IOException {
         this.droneId = initialDroneData.getId(); 
         this.clientSocket = socket;
         this.packageStream = packageStream;
         this.packageStreamOut = packageStreamOut;
-        System.out.println("DroneHandler initialized for connected drone ID: " + this.droneId + ". Remote: " + clientSocket.getRemoteSocketAddress());
+        System.out.println("DroneHandler (" + Thread.currentThread().getName() + ") initialized for connected drone ID: " + this.droneId + ". Remote: " + clientSocket.getRemoteSocketAddress());
         
-        // Update SharedData with the connected drone's initial position, 
-        // especially if this drone ID was pre-initialized as an idle drone.
-        ActiveMission mission = SharedData.getActiveMissionByDroneId(this.droneId);
-        if (mission != null) {
-            // If drone was idle, its current pos is its warehouse pos. If it had a mission assigned while "offline", 
-            // its current pos would be start of that path. Send its current known position.
-            SharedData.updateDronePosition(this.droneId, 
-                                           new GeoPosition(initialDroneData.getLatitude(), initialDroneData.getLongitude()), 
-                                           mission.getCurrentSegmentTargetIndex()); 
-            System.out.println("DroneHandler: Updated initial position in SharedData for drone " + this.droneId + " from its own report.");
+        ActiveMission missionInSharedData = SharedData.getActiveMissionByDroneId(this.droneId);
+        if (missionInSharedData != null) {
+            GeoPosition positionToSetInSharedData;
+            int segmentIndexToSetInSharedData;
+
+            if (missionInSharedData.isAssigned() && missionInSharedData.getPath() != null && missionInSharedData.getPathPoints() != null && !missionInSharedData.getPathPoints().isEmpty()) {
+                // Case: Drone is connecting, and SharedData ALREADY has an assigned mission for it.
+                // This happens when ClientHandler assigns a mission and then launches the drone simulation.
+                // We must use the mission's starting position and segment index from SharedData,
+                // not the drone's initial (likely 0,0, index 0) report.
+                positionToSetInSharedData = missionInSharedData.getCurrentDronePosition(); // Should be the start of the path.
+                segmentIndexToSetInSharedData = missionInSharedData.getCurrentSegmentTargetIndex(); // Should be 1 for an assigned path.
+                System.out.println("DroneHandler: Drone " + this.droneId + " connecting for an existing assigned mission. Using mission's start pos from SharedData: " + positionToSetInSharedData + " and segIdx: " + segmentIndexToSetInSharedData + ". Drone's initial reported: lat=" + initialDroneData.getLatitude() + ",lon=" + initialDroneData.getLongitude()+",idx="+initialDroneData.getCurrentSegmentTargetIndex());
+            } else {
+                // Case: Drone is connecting and is idle in SharedData (e.g., pre-initialized and connecting)
+                // or missionInSharedData exists but is not 'assigned' or has no path (e.g. an idle drone).
+                // In this scenario, we trust the drone's reported initial state.
+                positionToSetInSharedData = new GeoPosition(initialDroneData.getLatitude(), initialDroneData.getLongitude());
+                segmentIndexToSetInSharedData = initialDroneData.getCurrentSegmentTargetIndex();
+                System.out.println("DroneHandler: Drone " + this.droneId + " connecting as idle/new or for unassigned mission. Using drone's initial reported pos: " + positionToSetInSharedData + " and segIdx: " + segmentIndexToSetInSharedData);
+            }
+            SharedData.updateDronePosition(this.droneId, positionToSetInSharedData, segmentIndexToSetInSharedData);
+            System.out.println("DroneHandler: Updated/Verified state in SharedData for drone " + this.droneId + ". Final Pos used: " + positionToSetInSharedData + ", Final SegIdx used: " + segmentIndexToSetInSharedData);
         } else {
-            // This case means a drone connected whose ID was NOT pre-initialized in SharedData.
-            // This could be an error, or a policy to dynamically add new, unknown drones.
-            // For now, let's assume drone IDs are known from initialization.
-            System.err.println("DroneHandler: WARNING - Drone ID " + this.droneId + " connected but not found in SharedData. This drone might not be managed correctly.");
-            // Optionally, create a new ActiveMission for it here if policy allows dynamic addition:
-            // ActiveMission newDroneEntry = new ActiveMission(this.droneId, new GeoPosition(initialDroneData.getLatitude(), initialDroneData.getLongitude()));
-            // SharedData.addOrUpdateDrone(newDroneEntry); // Would need a new method in SharedData
+            System.err.println("DroneHandler: CRITICAL - Drone ID " + this.droneId + " connected but NO ActiveMission object found in SharedData. This drone cannot be managed. Initial Data: lat=" + initialDroneData.getLatitude()+",lon="+initialDroneData.getLongitude()+",segIdx="+initialDroneData.getCurrentSegmentTargetIndex());
+            // If this happens, the drone is connecting without being pre-initialized by CommandCenter or assigned by ClientHandler.
+            // To prevent null issues later and at least register it, we can create a default idle mission entry:
+            // GeoPosition reportedPos = new GeoPosition(initialDroneData.getLatitude(), initialDroneData.getLongitude());
+            // ActiveMission newAm = new ActiveMission(this.droneId, reportedPos); // constructor for idle drone
+            // SharedData.forceAddOrUpdateActiveMission(this.droneId, newAm); // Would need this new method in SharedData.
+            // For now, this is an unhandled state that will likely lead to this drone not participating in missions.
         }
     }
 
@@ -66,6 +79,8 @@ public class DroneHandler implements Runnable {
             System.out.println("DroneHandler for drone " + this.droneId + ": Sending path data: " + pathData);
             packageStreamOut.writeObject(pathData);
             packageStreamOut.flush();
+            this.lastSentPathToDrone = path; // Update the last sent path
+            System.out.println("DroneHandler for drone " + this.droneId + ": Sent path data. Last sent path updated.");
         } catch (IOException e) {
             System.err.println("DroneHandler for drone " + this.droneId + ": Error sending path: " + e.getMessage());
         }
@@ -73,10 +88,10 @@ public class DroneHandler implements Runnable {
 
     private void sendDefaultCommand() {
         try {
-            // Command 0 could be standby/no_new_instructions or a general ACK
             ServerData commandData = new ServerData(this.droneId, 0, null); 
             packageStreamOut.writeObject(commandData);
             packageStreamOut.flush();
+            // Do not nullify lastSentPathToDrone here, it's managed based on SharedData state
         } catch (IOException e) {
             System.err.println("DroneHandler for drone " + this.droneId + ": Error sending default command: " + e.getMessage());
         }
@@ -84,23 +99,56 @@ public class DroneHandler implements Runnable {
 
     @Override
     public void run() {
-        // Immediately check if there's a mission assigned to this drone and send path if so.
-        checkAndSendMissionPath();
+        checkAndSendMissionPath(); // Initial path send if assigned on connection
 
         try {
             while (clientSocket.isConnected() && !clientSocket.isClosed()) {
-                DroneData data = (DroneData) packageStream.readObject(); // Subsequent reads are drone updates
+                DroneData dataFromDrone = (DroneData) packageStream.readObject();
                 
-                ActiveMission mission = SharedData.getActiveMissionByDroneId(data.getId());
-                GeoPosition currentReportedPosition = new GeoPosition(data.getLatitude(), data.getLongitude());
-                int nextSegmentIndex = (mission != null && mission.isAssigned()) ? mission.getCurrentSegmentTargetIndex() : 0;
+                GeoPosition currentReportedPosition = new GeoPosition(dataFromDrone.getLatitude(), dataFromDrone.getLongitude());
+                int reportedSegmentIndexFromDrone = dataFromDrone.getCurrentSegmentTargetIndex();
                 
-                SharedData.updateDronePosition(data.getId(), currentReportedPosition, nextSegmentIndex);
+                SharedData.updateDronePosition(dataFromDrone.getId(), currentReportedPosition, reportedSegmentIndexFromDrone);
+                
+                ActiveMission currentMissionStateInSharedData = SharedData.getActiveMissionByDroneId(dataFromDrone.getId());
 
-                // Periodically, the drone might need new instructions or re-assignment.
-                // For now, after updates, just send a default command. 
-                // A more advanced system might re-evaluate missions or allow new commands to be queued.
-                sendDefaultCommand(); 
+                if (currentMissionStateInSharedData != null) {
+                    if (reportedSegmentIndexFromDrone == 0 && currentMissionStateInSharedData.isAssigned()) {
+                        // Drone signals path completion for the mission it was on.
+                        System.out.println("DroneHandler: Drone " + dataFromDrone.getId() + " reported path completion (segment index 0). Marking as idle in SharedData.");
+                        currentMissionStateInSharedData.setPath(null);
+                        currentMissionStateInSharedData.setAssigned(false);
+                        currentMissionStateInSharedData.setCurrentSegmentTargetIndex(0); // Reflect drone's state
+                        this.lastSentPathToDrone = null; // Drone is now idle, no path is "active" for it
+                        sendDefaultCommand(); // Acknowledge, drone is now idle.
+
+                    } else if (currentMissionStateInSharedData.isAssigned() && 
+                               currentMissionStateInSharedData.getPathPoints() != null && 
+                               !currentMissionStateInSharedData.getPathPoints().isEmpty()) {
+                        // Drone is (or should be) on a mission according to SharedData.
+                        List<GeoPosition> pathInSharedData = currentMissionStateInSharedData.getPathPoints();
+                        
+                        // Check if the path in SharedData is different from the last one sent to this drone.
+                        // This handles initial assignment (if checkAndSendMissionPath didn't catch it or if state changed rapidly)
+                        // and re-assignment to a new path after becoming idle.
+                        if (this.lastSentPathToDrone != pathInSharedData) { 
+                            System.out.println("DroneHandler for drone " + this.droneId + ": Path in SharedData differs from last sent path (or first time for this handler). Sending/Re-sending path.");
+                            sendPathToDrone(pathInSharedData); // This will update lastSentPathToDrone
+                        } else {
+                            // Path is the same as last sent, drone is presumably following it. Send default ack.
+                            sendDefaultCommand();
+                        }
+                    } else { // Drone is idle in SharedData (not assigned, or path is null/empty)
+                        if (this.lastSentPathToDrone != null) {
+                            System.out.println("DroneHandler for drone " + this.droneId + ": Drone is now idle in SharedData, but was previously on a mission. Clearing last sent path state for handler.");
+                            this.lastSentPathToDrone = null;
+                        }
+                        sendDefaultCommand();
+                    }
+                } else {
+                    System.err.println("DroneHandler: No ActiveMission found for drone " + dataFromDrone.getId() + " after receiving update. Sending default command.");
+                    sendDefaultCommand();
+                }
             }
         } catch (IOException | ClassNotFoundException e) {
             String droneIdentifier = "drone " + droneId;
@@ -114,12 +162,9 @@ public class DroneHandler implements Runnable {
                  System.out.println("DroneHandler for " + droneIdentifier + ": Socket closed or connection reset.");
             } else {
                 System.out.println("DroneHandler for " + droneIdentifier + ": Disconnected or error. " + e.getClass().getSimpleName() + ": " + e.getMessage());
-                 // e.printStackTrace(); // For debugging unexpected errors
             }
         } finally {
             System.out.println("DroneHandler for drone " + droneId + " closing connection and resources handled by CommandCenter.");
-            // Streams (packageStream, packageStreamOut) and clientSocket are managed by CommandCenter's main loop,
-            // so DroneHandler should not close them here.
         }
     }
 }

@@ -1,5 +1,7 @@
 package project.authorization;
 
+import project.authorization.ui.NotificationManager;
+
 import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
@@ -16,6 +18,7 @@ class DeliveryPanel extends JPanel {
     private Timer droneTimer;
     private MainWindow mainWindow;
     private JTextField notesField;
+    private NotificationManager notificationManager;
 
     // Dark Theme Color Palette (consistent with MainWindow)
     private static final Color PANEL_BACKGROUND = MainWindow.PANEL_BACKGROUND;
@@ -30,6 +33,7 @@ class DeliveryPanel extends JPanel {
 
     public DeliveryPanel(MainWindow mainWindow) {
         this.mainWindow = mainWindow;
+        this.notificationManager = mainWindow.getNotificationManager();
         setLayout(new BorderLayout(15, 15));
         setBackground(PANEL_BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -244,7 +248,7 @@ class DeliveryPanel extends JPanel {
 
     private void processOrderConfirmation() {
         if (addressField.getText().trim().isEmpty() || addressField.getText().equals("Введите адрес")) {
-            JOptionPane.showMessageDialog(this, "Укажите адрес доставки", "Ошибка", JOptionPane.WARNING_MESSAGE);
+            notificationManager.show("Укажите адрес доставки.", NotificationManager.NotificationType.WARNING);
             return;
         }
 
@@ -257,11 +261,7 @@ class DeliveryPanel extends JPanel {
         boolean success = mainWindow.processOrderPlacement(address, deliveryTypeStr, notes);
 
         if (success) {
-            JOptionPane.showMessageDialog(this,
-                    "<html><body style='color:" + formatColorToHex(TEXT_PRIMARY) + ";'><b>Заказ успешно создан и отправлен в обработку!</b><br>" +
-                            "Детали будут доступны в истории заказов.</body></html>",
-                    "Заказ оформлен",
-                    JOptionPane.INFORMATION_MESSAGE);
+            notificationManager.show("Заказ успешно создан и отправлен в обработку!", NotificationManager.NotificationType.SUCCESS);
             // Clear fields
             addressField.setText("");
             if (notesField != null) notesField.setText("");
@@ -280,8 +280,8 @@ class DeliveryPanel extends JPanel {
             // mainWindow.switchToHistoryPanel(); // Example, if such method exists
 
         } else {
-            // Error message already shown by MainWindow.processOrderPlacement or OrderService
-            // JOptionPane.showMessageDialog(this, "Не удалось оформить заказ. Пожалуйста, проверьте корзину и попробуйте снова.", "Ошибка оформления", JOptionPane.ERROR_MESSAGE);
+            // Error notification is now handled by mainWindow.processOrderPlacement, so no extra message is needed here.
+            // notificationManager.show("Не удалось оформить заказ. Пожалуйста, проверьте корзину и попробуйте снова.", NotificationManager.NotificationType.ERROR);
         }
     }
 

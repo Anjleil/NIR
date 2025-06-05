@@ -1,6 +1,7 @@
 package project.authorization;
 
 import project.authorization.db.DatabaseManager;
+import project.authorization.ui.NotificationManager;
 
 import javax.swing.*;
 import javax.swing.border.Border;
@@ -19,6 +20,7 @@ class ProductSelectionPanel extends JPanel {
     private DefaultListModel<Product> productListModel = new DefaultListModel<>();
     private JList<Product> productJList;
     private CartService cartService;
+    private NotificationManager notificationManager;
 
     // Dark Theme Color Palette (consistent with MainWindow)
     private static final Color PANEL_BACKGROUND = MainWindow.PANEL_BACKGROUND;
@@ -32,8 +34,9 @@ class ProductSelectionPanel extends JPanel {
     private static final Font BOLD_FONT = MainWindow.BOLD_FONT;
     private static final Font BUTTON_FONT = MainWindow.BOLD_FONT;
 
-    public ProductSelectionPanel() {
+    public ProductSelectionPanel(NotificationManager notificationManager) {
         super(new BorderLayout(10, 15)); // Increased bottom gap
+        this.notificationManager = notificationManager;
         setBackground(PANEL_BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
@@ -88,7 +91,7 @@ class ProductSelectionPanel extends JPanel {
             System.err.println("Error fetching products: " + e.getMessage());
             e.printStackTrace();
             // Optionally show a user-friendly error message
-            JOptionPane.showMessageDialog(this, "Ошибка загрузки товаров из базы данных.", "Ошибка базы данных", JOptionPane.ERROR_MESSAGE);
+            notificationManager.show("Ошибка загрузки товаров из базы данных.", NotificationManager.NotificationType.ERROR);
         }
         return products;
     }
@@ -161,29 +164,26 @@ class ProductSelectionPanel extends JPanel {
         Product selectedProduct = productJList.getSelectedValue();
         if (selectedProduct != null) {
             if (!UserSession.getInstance().isLoggedIn()) {
-                JOptionPane.showMessageDialog(this, "Пожалуйста, войдите в систему, чтобы добавить товары в корзину.", "Требуется вход", JOptionPane.WARNING_MESSAGE);
+                notificationManager.show("Пожалуйста, войдите, чтобы добавить товары в корзину.", NotificationManager.NotificationType.WARNING);
                 return;
             }
 
             if (selectedProduct.getStockQuantity() <= 0) {
-                JOptionPane.showMessageDialog(this, "Товар \"" + selectedProduct.getName() + "\" отсутствует на складе.", "Нет в наличии", JOptionPane.WARNING_MESSAGE);
+                notificationManager.show("Товар \"" + selectedProduct.getName() + "\" отсутствует на складе.", NotificationManager.NotificationType.WARNING);
                 return;
             }
 
             try {
                 cartService.addOrUpdateCartItem(UserSession.getInstance().getCartId(), selectedProduct.getProductId(), 1);
-                JOptionPane.showMessageDialog(this,
-                        "Товар \"" + selectedProduct.getName() + "\" добавлен в корзину.",
-                        "Добавлено в корзину",
-                        JOptionPane.INFORMATION_MESSAGE);
+                notificationManager.show("Товар \"" + selectedProduct.getName() + "\" добавлен в корзину.", NotificationManager.NotificationType.SUCCESS);
                 // TODO: Consider updating a cart count label in MainWindow or firing an event
             } catch (RuntimeException e) {
                 // Error already logged by CartService, show user-friendly message
-                JOptionPane.showMessageDialog(this, "Не удалось добавить товар в корзину. Пожалуйста, попробуйте еще раз.", "Ошибка", JOptionPane.ERROR_MESSAGE);
+                notificationManager.show("Не удалось добавить товар в корзину. Пожалуйста, попробуйте еще раз.", NotificationManager.NotificationType.ERROR);
             }
 
         } else {
-            JOptionPane.showMessageDialog(this, "Пожалуйста, выберите товар.", "Товар не выбран", JOptionPane.WARNING_MESSAGE);
+            notificationManager.show("Пожалуйста, выберите товар.", NotificationManager.NotificationType.WARNING);
         }
     }
 

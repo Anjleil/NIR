@@ -1,9 +1,13 @@
 package project.authorization;
 
+import project.authorization.ui.NotificationManager;
+
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicTabbedPaneUI;
 import javax.swing.text.View;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.util.List;
 import java.beans.PropertyChangeListener;
 import java.beans.PropertyChangeSupport;
@@ -22,6 +26,7 @@ public class MainWindow extends JFrame {
     private DeliveryPanel deliveryPanel;
     private OrderHistoryPanel historyPanel;
     private OrderService orderService;
+    private NotificationManager notificationManager;
 
     public static final Color WINDOW_BACKGROUND = new Color(45, 45, 45);
     public static final Color PANEL_BACKGROUND = new Color(55, 58, 60);
@@ -32,24 +37,43 @@ public class MainWindow extends JFrame {
     public static final Color TABLE_HEADER_BG_COLOR = new Color(65, 68, 70);
     public static final Color TABLE_SELECTION_BG_COLOR = ACCENT_COLOR.darker();
     public static final Color TABLE_SELECTION_FG_COLOR = Color.WHITE;
-    public static final Font DEFAULT_FONT = new Font("Franklin Gothic Medium", Font.PLAIN, 14);
-    public static final Font BOLD_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 14);
-    public static final Font TAB_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 16);
-    public static final Font TABLE_HEADER_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 14);
+    public static final Font DEFAULT_FONT = new Font("Segoe UI", Font.PLAIN, 14);
+    public static final Font BOLD_FONT = new Font("Segoe UI", Font.BOLD, 14);
+    public static final Font TAB_FONT = new Font("Segoe UI", Font.BOLD, 16);
+    public static final Font TABLE_HEADER_FONT = new Font("Segoe UI", Font.BOLD, 14);
 
     public MainWindow() {
         super("DroneExpress - Система заказов");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(1200, 800);
         setLocationRelativeTo(null);
-        getContentPane().setBackground(WINDOW_BACKGROUND);
+
+        JLayeredPane layeredPane = new JLayeredPane();
+        this.notificationManager = new NotificationManager(layeredPane);
+        setContentPane(layeredPane);
+
+        // Create and add a background panel to ensure the dark theme is always visible
+        JPanel backgroundPanel = new JPanel();
+        backgroundPanel.setBackground(WINDOW_BACKGROUND);
+        layeredPane.add(backgroundPanel, JLayeredPane.DEFAULT_LAYER);
 
         tabbedPane = new JTabbedPane();
         styleTabbedPane(tabbedPane);
+        // The tabbed pane will be on a higher layer to be visible above the background
+        layeredPane.add(tabbedPane, Integer.valueOf(10));
+
+        // Ensure both panels resize with the window
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                backgroundPanel.setBounds(0, 0, layeredPane.getWidth(), layeredPane.getHeight());
+                tabbedPane.setBounds(0, 0, layeredPane.getWidth(), layeredPane.getHeight());
+            }
+        });
 
         orderService = new OrderService();
 
-        ProductSelectionPanel productPanel = new ProductSelectionPanel();
+        ProductSelectionPanel productPanel = new ProductSelectionPanel(this.notificationManager);
         productPanel.setBackground(PANEL_BACKGROUND);
         tabbedPane.addTab("🛒 Товары", productPanel);
 
@@ -88,7 +112,8 @@ public class MainWindow extends JFrame {
             }
         });
 
-        add(tabbedPane);
+        // The main content is now the tabbedPane, which is inside the layeredPane.
+        // The layeredPane itself is the content pane. We no longer add tabbedPane directly to the frame.
 
         if (!UserSession.getInstance().isLoggedIn()) {
             dispose();
@@ -97,6 +122,9 @@ public class MainWindow extends JFrame {
         }
         if (cartPanel != null) {
             cartPanel.refreshCartDisplay();
+        }
+        if (deliveryPanel != null) {
+            tabbedPane.setSelectedComponent(deliveryPanel);
         }
     }
 
@@ -125,9 +153,13 @@ public class MainWindow extends JFrame {
         }
     }
 
+    public NotificationManager getNotificationManager() {
+        return notificationManager;
+    }
+
     public boolean processOrderPlacement(String deliveryAddress, String deliveryType, String customerNotes) {
         if (!UserSession.getInstance().isLoggedIn()) {
-            JOptionPane.showMessageDialog(this, "Пожалуйста, войдите в систему для оформления заказа.", "Требуется вход", JOptionPane.WARNING_MESSAGE);
+            notificationManager.show("Пожалуйста, войдите в систему для оформления заказа.", NotificationManager.NotificationType.WARNING);
             return false;
         }
         User currentUser = UserSession.getInstance().getCurrentUser();
@@ -137,10 +169,7 @@ public class MainWindow extends JFrame {
             support.firePropertyChange("orderSaved", null, newDbOrder);
             return true;
         } else {
-            JOptionPane.showMessageDialog(this, 
-                "Не удалось создать заказ. Возможные причины: корзина пуста, проблемы с наличием товара или ошибка сервера.", 
-                "Ошибка создания заказа", 
-                JOptionPane.ERROR_MESSAGE);
+            notificationManager.show("Не удалось создать заказ. Возможные причины: корзина пуста или ошибка сервера.", NotificationManager.NotificationType.ERROR);
             return false;
         }
     }

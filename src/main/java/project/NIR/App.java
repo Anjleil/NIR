@@ -18,7 +18,7 @@ public class App {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setVisible(true);
 
-        Timer timer = new Timer(5000, e -> {
+        Timer timer = new Timer(500, e -> {
             if (MapModel.getMapViewer() != null) {
                 MapModel.getMapViewer().updateMapDisplay();
             }

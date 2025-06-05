@@ -67,16 +67,16 @@ public class SharedData {
     }
 
     // Renamed from assignPendingMissionToVirtualDrone and assignRealDroneToPendingMission
-    public static boolean assignMissionToAvailableDrone(int tempMissionKey) { // Parameter is now the negative key
+    public static int assignMissionToAvailableDrone(int tempMissionKey) { // Parameter is now the negative key, returns droneId or 0
         synchronized (lock) {
             if (tempMissionKey >= 0) { // Defensive check: tempMissionKey should be negative
                 System.err.println("SharedData: assignMissionToAvailableDrone called with invalid (non-negative) tempMissionKey: " + tempMissionKey);
-                return false;
+                return 0; // Failure
             }
             ActiveMission clientMission = activeMissions.get(tempMissionKey);
             if (clientMission == null || clientMission.isAssigned() || clientMission.getDroneId() != 0 || clientMission.getPath() == null) {
                 System.err.println("SharedData: Client mission (key: " + tempMissionKey + ") not found, already assigned, not a pending client mission, or has no path.");
-                return false;
+                return 0; // Failure
             }
 
             GeoPosition missionStartPos = clientMission.getPathPoints().get(0);
@@ -84,7 +84,7 @@ public class SharedData {
             
             if (closestWarehouse == null) {
                 System.err.println("SharedData: No warehouses found to assign mission (key: " + tempMissionKey + ")");
-                return false;
+                return 0; // Failure
             }
 
             System.out.println("SharedData: Closest warehouse to mission (key: " + tempMissionKey + ") is " + closestWarehouse.getName());
@@ -105,11 +105,11 @@ public class SharedData {
                     activeMissions.remove(tempMissionKey); // Remove the original client mission entry using its negative key
                     // The drone's entry in activeMissions (keyed by its droneId) is now updated.
                     System.out.println("SharedData: Assigned client mission (original key: " + tempMissionKey + ") to drone " + drone.getDroneId() + ". Missions map size: " + activeMissions.size());
-                    return true;
+                    return drone.getDroneId(); // Return the assigned drone's ID
                 }
             }
             System.out.println("SharedData: No available idle drone found at warehouse " + closestWarehouse.getName() + " for mission (key: " + tempMissionKey + ")");
-            return false;
+            return 0; // Failure - no drone found
         }
     }
 

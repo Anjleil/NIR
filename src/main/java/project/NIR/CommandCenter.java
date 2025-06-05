@@ -17,9 +17,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class CommandCenter {
-    private static final int PORT = 12345;
+    public static final int PORT = 12345;
+    private static ServerSocket serverSocketInstance = null;
 
     public static void main(String[] args) throws IOException {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("CommandCenter: Shutdown hook triggered. Closing server socket...");
+            if (serverSocketInstance != null && !serverSocketInstance.isClosed()) {
+                try {
+                    serverSocketInstance.close();
+                    System.out.println("CommandCenter: Server socket closed.");
+                } catch (IOException e) {
+                    System.err.println("CommandCenter: Error closing server socket in shutdown hook: " + e.getMessage());
+                }
+            }
+        }));
+
         SharedData.clearAllMissionsAndWarehouses();
 
         Map<String, GeoPosition> warehouseLocations = new HashMap<>();
@@ -33,9 +46,8 @@ public class CommandCenter {
     }
 
     private static void startServer() {
-        ServerSocket server = null;
         try {
-            server = new ServerSocket(PORT);
+            serverSocketInstance = new ServerSocket(PORT);
             System.out.println("CommandCenter: Server started on port " + PORT);
         } catch (IOException e) {
             System.err.println("CommandCenter: Failed to start server on port " + PORT + ": " + e.getMessage());
@@ -48,8 +60,11 @@ public class CommandCenter {
             ObjectInputStream packageStream = null;
             ObjectOutputStream outStreamToClient = null;
             try {
-                assert server != null;
-                clientSocket = server.accept();
+                if (serverSocketInstance == null || serverSocketInstance.isClosed()) {
+                    System.out.println("CommandCenter: Server socket is closed, stopping accept loop.");
+                    break;
+                }
+                clientSocket = serverSocketInstance.accept();
                 System.out.println("\nCommandCenter: New connection from " + clientSocket.getRemoteSocketAddress());
 
                 packageStream = new ObjectInputStream(clientSocket.getInputStream());
@@ -75,6 +90,10 @@ public class CommandCenter {
                     if (clientSocket != null && !clientSocket.isClosed()) clientSocket.close();
                 }
             } catch (IOException | ClassNotFoundException e) {
+                if (serverSocketInstance != null && serverSocketInstance.isClosed()) {
+                    System.out.println("CommandCenter: Accept loop interrupted due to server socket closure.");
+                    break;
+                }
                 System.err.println("CommandCenter: Error handling connection for " + (clientSocket != null ? clientSocket.getRemoteSocketAddress() : "UNKNOWN_CLIENT") + ": " + e.getMessage());
                 try {
                     if (outStreamToClient != null) outStreamToClient.close();

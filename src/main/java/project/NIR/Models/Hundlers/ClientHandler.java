@@ -12,6 +12,8 @@ import project.NIR.Models.Routes.Path;
 import project.NIR.Models.Warehouse;
 import project.NIR.Utils.GeoUtils;
 import project.NIR.Utils.Pathfinder;
+import project.NIR.Models.Drones.AirDrone;
+import project.NIR.CommandCenter; // For PORT access
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -82,10 +84,28 @@ public class ClientHandler implements Runnable {
                                    " from warehouse " + closestWarehouse.getName() + 
                                    " to " + clientDestinationGeoPos + ". Path points: " + path.getPoints().size());
                 
-                boolean assignedToDrone = SharedData.assignMissionToAvailableDrone(tempMissionId);
-                if (assignedToDrone) {
-                    System.out.println("ClientHandler: Successfully assigned pending mission " + tempMissionId + " to an available drone.");
-                    sendResponse(true);
+                int assignedDroneId = SharedData.assignMissionToAvailableDrone(tempMissionId);
+                
+                if (assignedDroneId > 0) { // Check if a drone was successfully assigned
+                    System.out.println("ClientHandler: Successfully assigned pending mission " + tempMissionId + " to drone ID: " + assignedDroneId + ".");
+                    
+                    // Launch the simulated drone for this mission
+                    AirDrone droneToLaunch = new AirDrone(assignedDroneId);
+                    Thread droneLaunchThread = new Thread(() -> {
+                        try {
+                            System.out.println("ClientHandler (DroneLaunchThread-" + assignedDroneId + "): Launching simulated drone ID: " + assignedDroneId);
+                            droneToLaunch.connectToServer("localhost", CommandCenter.PORT); // Use actual port from CommandCenter
+                             System.out.println("ClientHandler (DroneLaunchThread-" + assignedDroneId + "): Simulated drone " + assignedDroneId + " connectToServer call completed.");
+                        } catch (Exception e) {
+                            System.err.println("ClientHandler (DroneLaunchThread-" + assignedDroneId + "): Error launching/connecting simulated drone " + assignedDroneId + ": " + e.getMessage());
+                            e.printStackTrace();
+                        }
+                    });
+                    droneLaunchThread.setName("SimDroneLaunchThread-" + assignedDroneId);
+                    droneLaunchThread.setDaemon(false); // Consistent with TestConnection's drone threads
+                    droneLaunchThread.start();
+
+                    sendResponse(true); // Mission assignment to SharedData and drone launch initiated
                 } else {
                     System.err.println("ClientHandler: Failed to assign pending mission " + tempMissionId + " to any available drone.");
                     sendResponse(false); 

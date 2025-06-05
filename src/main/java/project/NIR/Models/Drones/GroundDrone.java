@@ -19,10 +19,10 @@ public class GroundDrone extends Drone {
         // ...
     }
 
-    @Override
-    public void run() {
+    // @Override
+    // public void run() {
 
-    }
+    // }
 
     // Дополнительные методы и свойства для наземного дрона
     // ...

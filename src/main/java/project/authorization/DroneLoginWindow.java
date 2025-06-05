@@ -1,7 +1,11 @@
 package project.authorization;
 
+import project.authorization.ui.NotificationManager;
+
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.awt.event.FocusListener;
@@ -22,11 +26,13 @@ public class DroneLoginWindow extends JFrame {
     private CardLayout cardLayout; // To switch between panels
     private JPanel signInPanel; // Panel for sign-in components
     private JPanel signUpPanel; // Panel for sign-up components
+    private JTextField usernameSignUpField;
     private JTextField emailFieldSignUp; // Email field for sign-up
     private JPasswordField passwordFieldSignUp; // Password field for sign-up
     private JPasswordField confirmPasswordFieldSignUp; // Confirm password field for sign-up
     private JTextField firstNameSignUpField; // First name field for sign-up
     private JTextField lastNameSignUpField; // Last name field for sign-up
+    private NotificationManager notificationManager;
 
     // Dark Theme Color Palette
     private static final Color WINDOW_BACKGROUND = new Color(45, 45, 45);
@@ -40,10 +46,10 @@ public class DroneLoginWindow extends JFrame {
     private static final Color INPUT_FOCUS_LINE_COLOR = ACCENT_COLOR;
     private static final Color BUTTON_TEXT_COLOR = Color.WHITE;
 
-    private static final Font DEFAULT_FONT = new Font("Franklin Gothic Medium", Font.PLAIN, 16);
-    private static final Font BOLD_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 16);
-    private static final Font TAB_FONT = new Font("Franklin Gothic Medium", Font.BOLD, 18);
-    private static final Font SMALL_FONT = new Font("Franklin Gothic Medium", Font.PLAIN, 14);
+    private static final Font DEFAULT_FONT = new Font("Segoe UI", Font.PLAIN, 18);
+    private static final Font BOLD_FONT = new Font("Segoe UI", Font.BOLD, 18);
+    private static final Font TAB_FONT = new Font("Segoe UI", Font.BOLD, 20);
+    private static final Font SMALL_FONT = new Font("Segoe UI", Font.PLAIN, 16);
 
     private Image backgroundImage;
     private static final String BACKGROUND_IMAGE_PATH = "/images/login_background.jpg"; // Configurable path
@@ -58,10 +64,25 @@ public class DroneLoginWindow extends JFrame {
 
         loadBackgroundImage();
 
-        // Set custom content pane for background image
+        // Create the JLayeredPane to hold everything
+        JLayeredPane layeredPane = new JLayeredPane();
+        setContentPane(layeredPane);
+
+        // The NotificationManager will manage the top layer
+        notificationManager = new NotificationManager(layeredPane);
+
+        // Background panel will be on the bottom layer
         BackgroundPanel backgroundPanel = new BackgroundPanel();
-        setContentPane(backgroundPanel);
-        backgroundPanel.setLayout(new BorderLayout()); // Important for placing mainPanelContainer
+        backgroundPanel.setLayout(new BorderLayout());
+        layeredPane.add(backgroundPanel, JLayeredPane.DEFAULT_LAYER);
+
+        // We need to size the background panel manually since JLayeredPane has no layout manager
+        addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentResized(ComponentEvent e) {
+                backgroundPanel.setBounds(0, 0, layeredPane.getWidth(), layeredPane.getHeight());
+            }
+        });
 
         // Main content panel that will hold cardPanel and tabs
         JPanel mainPanelContainer = new JPanel(new BorderLayout(0,0));
@@ -73,11 +94,11 @@ public class DroneLoginWindow extends JFrame {
         JPanel tabPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 30, 0)); // Centered tabs
         // tabPanel.setBackground(WINDOW_BACKGROUND); // Now transparent
         tabPanel.setOpaque(false);
-        signInLabel = new JLabel("SIGN IN");
+        signInLabel = new JLabel("ВХОД");
         styleTabLabel(signInLabel, true); 
         tabPanel.add(signInLabel);
 
-        signUpLabel = new JLabel("SIGN UP");
+        signUpLabel = new JLabel("РЕГИСТРАЦИЯ");
         styleTabLabel(signUpLabel, false);
         tabPanel.add(signUpLabel);
         mainPanelContainer.add(tabPanel, BorderLayout.NORTH);
@@ -91,11 +112,11 @@ public class DroneLoginWindow extends JFrame {
 
         // Create Sign In Panel
         signInPanel = createSignInPanel();
-        cardPanel.add(signInPanel, "SIGN_IN");
+        cardPanel.add(signInPanel, "Вход");
 
         // Create Sign Up Panel (will include email)
         signUpPanel = createSignUpPanel();
-        cardPanel.add(signUpPanel, "SIGN_UP");
+        cardPanel.add(signUpPanel, "Регистрация");
         
         mainPanelContainer.add(cardPanel, BorderLayout.CENTER);
         // add(mainPanelContainer, BorderLayout.CENTER); // Added to backgroundPanel instead
@@ -113,7 +134,7 @@ public class DroneLoginWindow extends JFrame {
             public void mouseClicked(MouseEvent e) {
                 styleTabLabel(signInLabel, true);
                 styleTabLabel(signUpLabel, false);
-                cardLayout.show(cardPanel, "SIGN_IN");
+                cardLayout.show(cardPanel, "Вход");
             }
         });
         signUpLabel.addMouseListener(new MouseAdapter() {
@@ -121,7 +142,7 @@ public class DroneLoginWindow extends JFrame {
             public void mouseClicked(MouseEvent e) {
                 styleTabLabel(signInLabel, false);
                 styleTabLabel(signUpLabel, true);
-                cardLayout.show(cardPanel, "SIGN_UP");
+                cardLayout.show(cardPanel, "Регистрация");
             }
         });
 
@@ -130,7 +151,7 @@ public class DroneLoginWindow extends JFrame {
         // Sign Up button action will be set within createSignUpPanel
         
         // Show Sign In panel by default
-        cardLayout.show(cardPanel, "SIGN_IN");
+        cardLayout.show(cardPanel, "Вход");
         pack(); // Pack after all components are added and styled for better sizing
         setMinimumSize(new Dimension(450, 600)); // Ensure minimum size
         setLocationRelativeTo(null); // Center after pack
@@ -152,16 +173,16 @@ public class DroneLoginWindow extends JFrame {
 
         // Username Field (re-initialize here for this panel)
         usernameField = new JTextField(20); 
-        styleTextField(usernameField, "Username");
+        styleTextField(usernameField, "Логин");
         gbc.insets = new Insets(15, 0, 15, 0);
         panel.add(usernameField, gbc);
 
         // Password Field (re-initialize here for this panel)
         passwordField = new JPasswordField(20); 
-        styleTextField(passwordField, "Password");
+        styleTextField(passwordField, "Пароль");
         panel.add(passwordField, gbc);
 
-        JCheckBox keepLoggedInCheckbox = new JCheckBox("Keep me logged in");
+        JCheckBox keepLoggedInCheckbox = new JCheckBox("Запомнить меня");
         styleCheckbox(keepLoggedInCheckbox);
         gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.NONE;
@@ -170,13 +191,13 @@ public class DroneLoginWindow extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL; 
         gbc.anchor = GridBagConstraints.CENTER; 
 
-        loginButton = new JButton("LOGIN");
+        loginButton = new JButton("Вход");
         styleLoginButton(loginButton);
         gbc.insets = new Insets(20, 0, 10, 0);
         panel.add(loginButton, gbc);
         loginButton.addActionListener(e -> attemptLogin());
 
-        JLabel forgotPasswordLabel = new JLabel("Forgot password?");
+        JLabel forgotPasswordLabel = new JLabel("Забыли пароль?");
         forgotPasswordLabel.setFont(SMALL_FONT);
         forgotPasswordLabel.setForeground(TEXT_SECONDARY);
         forgotPasswordLabel.setHorizontalAlignment(SwingConstants.CENTER);
@@ -204,31 +225,31 @@ public class DroneLoginWindow extends JFrame {
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.insets = new Insets(8, 0, 8, 0); // Slightly reduced insets for more fields
 
-        JTextField usernameSignUpField = new JTextField(20);
-        styleTextField(usernameSignUpField, "Username");
+        usernameSignUpField = new JTextField(20);
+        styleTextField(usernameSignUpField, "Логин");
         panel.add(usernameSignUpField, gbc);
 
         emailFieldSignUp = new JTextField(20);
-        styleTextField(emailFieldSignUp, "Email");
+        styleTextField(emailFieldSignUp, "Почта");
         panel.add(emailFieldSignUp, gbc);
         
         firstNameSignUpField = new JTextField(20);
-        styleTextField(firstNameSignUpField, "First Name (Optional)");
+        styleTextField(firstNameSignUpField, "Имя");
         panel.add(firstNameSignUpField, gbc);
 
         lastNameSignUpField = new JTextField(20);
-        styleTextField(lastNameSignUpField, "Last Name (Optional)");
+        styleTextField(lastNameSignUpField, "Фамилия");
         panel.add(lastNameSignUpField, gbc);
 
         passwordFieldSignUp = new JPasswordField(20);
-        styleTextField(passwordFieldSignUp, "Password");
+        styleTextField(passwordFieldSignUp, "Введите пароль");
         panel.add(passwordFieldSignUp, gbc);
 
         confirmPasswordFieldSignUp = new JPasswordField(20);
-        styleTextField(confirmPasswordFieldSignUp, "Confirm Password");
+        styleTextField(confirmPasswordFieldSignUp, "Подтвердите пароль");
         panel.add(confirmPasswordFieldSignUp, gbc);
 
-        JButton signUpButton = new JButton("SIGN UP");
+        JButton signUpButton = new JButton("Регистрация");
         styleLoginButton(signUpButton); // Re-use login button style
         gbc.insets = new Insets(20, 0, 10, 0); // Larger top inset for button
         panel.add(signUpButton, gbc);
@@ -262,40 +283,76 @@ public class DroneLoginWindow extends JFrame {
     private void styleTextField(JTextField field, String placeholder) {
         field.setFont(DEFAULT_FONT);
         field.setForeground(TEXT_PRIMARY);
-        field.setOpaque(false); 
+        field.setOpaque(false);
         field.setCaretColor(TEXT_PRIMARY);
-        field.setMargin(new Insets(5, 5, 5, 5)); // Add internal padding for the text
+        field.setHorizontalAlignment(JTextField.CENTER); // Center align the text
+        // Increased vertical and left padding to make field taller and fix text clipping
+        field.setMargin(new Insets(8, 10, 8, 5));
 
         UnderlineBorder defaultBorder = new UnderlineBorder(INPUT_LINE_COLOR, 1);
-        UnderlineBorder focusBorder = new UnderlineBorder(INPUT_FOCUS_LINE_COLOR, 2); 
+        UnderlineBorder focusBorder = new UnderlineBorder(INPUT_FOCUS_LINE_COLOR, 2);
 
-        field.setBorder(defaultBorder); // Keep the simple border, margin handles padding
+        field.setBorder(defaultBorder);
 
-        // Placeholder text behavior
-        if (field.getText().isEmpty()) {
-            field.setText(placeholder);
-            field.setForeground(TEXT_SECONDARY);
+        // Placeholder text behavior is handled differently for JTextField and JPasswordField
+        if (field instanceof JPasswordField) {
+            JPasswordField pf = (JPasswordField) field;
+
+            // Initial state for placeholder
+            if (pf.getPassword().length == 0) {
+                pf.setEchoChar((char) 0);
+                pf.setText(placeholder);
+                pf.setForeground(TEXT_SECONDARY);
+            }
+
+            pf.addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent e) {
+                    pf.setBorder(focusBorder);
+                    if (String.valueOf(pf.getPassword()).equals(placeholder)) {
+                        pf.setText("");
+                        pf.setEchoChar('*'); // Use echo char for actual input
+                        pf.setForeground(TEXT_PRIMARY);
+                    }
+                }
+
+                @Override
+                public void focusLost(FocusEvent e) {
+                    pf.setBorder(defaultBorder);
+                    if (pf.getPassword().length == 0) {
+                        pf.setEchoChar((char) 0); // Hide echo char for placeholder
+                        pf.setText(placeholder);
+                        pf.setForeground(TEXT_SECONDARY);
+                    }
+                }
+            });
+        } else {
+            // Initial state for placeholder
+            if (field.getText().isEmpty()) {
+                field.setText(placeholder);
+                field.setForeground(TEXT_SECONDARY);
+            }
+
+            field.addFocusListener(new FocusAdapter() {
+                @Override
+                public void focusGained(FocusEvent e) {
+                    field.setBorder(focusBorder);
+                    if (field.getText().equals(placeholder)) {
+                        field.setText("");
+                        field.setForeground(TEXT_PRIMARY);
+                    }
+                }
+
+                @Override
+                public void focusLost(FocusEvent e) {
+                    field.setBorder(defaultBorder);
+                    if (field.getText().isEmpty()) {
+                        field.setText(placeholder);
+                        field.setForeground(TEXT_SECONDARY);
+                    }
+                }
+            });
         }
-
-        field.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                field.setBorder(focusBorder);
-                if (field.getText().equals(placeholder)) {
-                    field.setText("");
-                    field.setForeground(TEXT_PRIMARY);
-                }
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                field.setBorder(defaultBorder);
-                if (field.getText().isEmpty()) {
-                    field.setText(placeholder);
-                    field.setForeground(TEXT_SECONDARY);
-                }
-            }
-        });
     }
 
     private void styleCheckbox(JCheckBox checkbox) {
@@ -335,11 +392,8 @@ public class DroneLoginWindow extends JFrame {
         String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword()).trim();
 
-        if (username.equals("Username") || password.equals("Password")) {
-             JOptionPane.showMessageDialog(this,
-                    "Пожалуйста, введите имя пользователя и пароль.",
-                    "Ошибка ввода",
-                    JOptionPane.ERROR_MESSAGE);
+        if (username.equals("Логин") || password.equals("Пароль")) {
+             notificationManager.show("Пожалуйста, введите имя пользователя и пароль.", NotificationManager.NotificationType.WARNING);
             return;
         }
 
@@ -352,10 +406,7 @@ public class DroneLoginWindow extends JFrame {
             dispose();
             SwingUtilities.invokeLater(() -> new MainWindow().setVisible(true));
         } else {
-            JOptionPane.showMessageDialog(this,
-                    "Неверное имя пользователя или пароль.",
-                    "Ошибка входа",
-                    JOptionPane.ERROR_MESSAGE);
+            notificationManager.show("Неверное имя пользователя или пароль.", NotificationManager.NotificationType.ERROR);
         }
     }
 
@@ -365,67 +416,47 @@ public class DroneLoginWindow extends JFrame {
         firstName = firstName.trim();
         lastName = lastName.trim();
 
-        if (username.isEmpty() || username.equals("Username") || 
-            email.isEmpty() || email.equals("Email") || 
-            password.isEmpty() || password.equals("Password") ||
-            confirmPassword.isEmpty() || confirmPassword.equals("Confirm Password")) {
-            JOptionPane.showMessageDialog(this, "Имя пользователя, Email и пароль обязательны для заполнения.", "Ошибка регистрации", JOptionPane.ERROR_MESSAGE);
+        if (username.isEmpty() || username.equals("Логин") ||
+            email.isEmpty() || email.equals("Почта") ||
+            password.isEmpty() || password.equals("Введите пароль") ||
+            confirmPassword.isEmpty() || confirmPassword.equals("Подтвердите пароль") ||
+            firstName.isEmpty() || firstName.equals("Имя") ||
+            lastName.isEmpty() || lastName.equals("Фамилия")) {
+            notificationManager.show("Все поля обязательны для заполнения.", NotificationManager.NotificationType.WARNING);
             return;
         }
         if (!password.equals(confirmPassword)) {
-            JOptionPane.showMessageDialog(this, "Пароли не совпадают.", "Ошибка регистрации", JOptionPane.ERROR_MESSAGE);
+            notificationManager.show("Пароли не совпадают.", NotificationManager.NotificationType.ERROR);
             return;
         }
 
-        // Clear placeholder text for optional fields if they were not touched
-        if (firstName.equals("First Name (Optional)")) firstName = "";
-        if (lastName.equals("Last Name (Optional)")) lastName = "";
+        // Optional fields check removed as placeholders no longer suggest they are optional.
 
         try {
             User newUser = authService.signUp(username, email, password, firstName, lastName);
             if (newUser != null) {
-                JOptionPane.showMessageDialog(this, 
-                    "Регистрация прошла успешно! Пожалуйста, войдите, используя свои учетные данные.", 
-                    "Регистрация успешна", 
-                    JOptionPane.INFORMATION_MESSAGE);
+                notificationManager.show("Регистрация прошла успешно! Теперь вы можете войти.", NotificationManager.NotificationType.SUCCESS);
                 // Switch to sign-in tab and clear sign-up fields
                 styleTabLabel(signInLabel, true);
                 styleTabLabel(signUpLabel, false);
-                cardLayout.show(cardPanel, "SIGN_IN");
+                cardLayout.show(cardPanel, "Вход");
                 clearSignUpFields();
             } else {
                 // This case should ideally not be reached if AuthService throws exceptions for specific errors
-                JOptionPane.showMessageDialog(this, "Произошла неизвестная ошибка при регистрации.", "Ошибка регистрации", JOptionPane.ERROR_MESSAGE);
+                notificationManager.show("Произошла неизвестная ошибка при регистрации.", NotificationManager.NotificationType.ERROR);
             }
         } catch (RuntimeException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Ошибка регистрации", JOptionPane.ERROR_MESSAGE);
+            notificationManager.show(ex.getMessage(), NotificationManager.NotificationType.ERROR);
         }
     }
 
     private void clearSignUpFields() {
-        // Assuming fields in createSignUpPanel are accessible or re-fetched if needed.
-        // For simplicity, let's assume they are class members or we re-initialize the panel if needed.
-        // If usernameSignUpField etc. are local to createSignUpPanel, this needs adjustment.
-        // Based on current structure, they are local. So, we'd need to re-get them, or make them members.
-        // Let's make them members (as emailFieldSignUp already is).
-        // Find the components in signUpPanel
-        for (Component comp : signUpPanel.getComponents()) {
-            if (comp instanceof JTextField) {
-                JTextField textField = (JTextField) comp;
-                // Resetting based on placeholder logic in styleTextField
-                String placeholder = ""; // Determine placeholder based on field name or store it
-                if (textField == emailFieldSignUp) placeholder = "Email";
-                // Add similar for usernameSignUpField, firstNameSignUpField, lastNameSignUpField if they become members
-                // Or simply:
-                textField.setText(""); // Clear it
-                // Then call focusLost to re-apply placeholder if it was setup to do so
-                FocusEvent focusLostEvent = new FocusEvent(textField, FocusEvent.FOCUS_LOST);
-                for (FocusListener listener : textField.getFocusListeners()) {
-                    listener.focusLost(focusLostEvent);
-                }
-            }
-        }
-        // Specifically for password fields
+        // The focus listeners attached in styleTextField will restore the placeholders
+        // when the fields lose focus (e.g., when the tab is switched).
+        if (usernameSignUpField != null) usernameSignUpField.setText("");
+        if (emailFieldSignUp != null) emailFieldSignUp.setText("");
+        if (firstNameSignUpField != null) firstNameSignUpField.setText("");
+        if (lastNameSignUpField != null) lastNameSignUpField.setText("");
         if (passwordFieldSignUp != null) passwordFieldSignUp.setText("");
         if (confirmPasswordFieldSignUp != null) confirmPasswordFieldSignUp.setText("");
     }

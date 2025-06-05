@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Vector;
 import java.util.function.Consumer;
+import project.authorization.ui.NotificationManager;
 
 public class CartPanel extends JPanel {
     private JTable cartTable;
@@ -19,6 +20,7 @@ public class CartPanel extends JPanel {
     private JLabel totalLabel;
     private CartService cartService;
     private MainWindow mainWindowRef;
+    private NotificationManager notificationManager;
 
     // Column Names (final for consistency)
     private static final String COL_PRODUCT_NAME = "Товар";
@@ -41,6 +43,7 @@ public class CartPanel extends JPanel {
     public CartPanel(MainWindow mainWindow) {
         this.mainWindowRef = mainWindow;
         this.cartService = new CartService();
+        this.notificationManager = mainWindow.getNotificationManager();
         setLayout(new BorderLayout(10, 10));
         setBackground(MainWindow.PANEL_BACKGROUND);
         setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
@@ -108,7 +111,7 @@ public class CartPanel extends JPanel {
         actionsColumn.setPreferredWidth(110);
 
         TableColumn quantityColumn = cartTable.getColumnModel().getColumn(IDX_QUANTITY);
-        quantityColumn.setCellEditor(new SpinnerCellEditor(1, 100)); 
+        quantityColumn.setCellEditor(new SpinnerCellEditor(1, 100, notificationManager)); 
         quantityColumn.setMinWidth(80);
         quantityColumn.setMaxWidth(100);
         quantityColumn.setPreferredWidth(90);
@@ -129,8 +132,8 @@ public class CartPanel extends JPanel {
             int cartItemId = (int) cartTableModel.getValueAt(row, IDX_CART_ITEM_ID);
             int newQuantity = Integer.parseInt(cartTableModel.getValueAt(row, IDX_QUANTITY).toString());
             
-            if (newQuantity < 0) { 
-                 JOptionPane.showMessageDialog(this, "Количество не может быть отрицательным.", "Ошибка ввода", JOptionPane.ERROR_MESSAGE);
+            if (newQuantity < 0) {
+                 notificationManager.show("Количество не может быть отрицательным.", NotificationManager.NotificationType.WARNING);
                  refreshCartDisplay();
                  return;
             }
@@ -139,14 +142,14 @@ public class CartPanel extends JPanel {
             refreshCartDisplay(); 
         } catch (NumberFormatException ex) {
             System.err.println("Invalid quantity format: " + ex.getMessage());
-            JOptionPane.showMessageDialog(this, "Пожалуйста, введите корректное число для количества.", "Ошибка формата", JOptionPane.ERROR_MESSAGE);
+            notificationManager.show("Пожалуйста, введите корректное число для количества.", NotificationManager.NotificationType.ERROR);
             refreshCartDisplay(); 
         } catch (ArrayIndexOutOfBoundsException ex) {
             System.err.println("Error accessing table data, column index might be wrong: " + ex.getMessage());
-            JOptionPane.showMessageDialog(this, "Произошла ошибка при обновлении данных таблицы.", "Ошибка таблицы", JOptionPane.ERROR_MESSAGE);
+            notificationManager.show("Произошла ошибка при обновлении данных таблицы.", NotificationManager.NotificationType.ERROR);
             refreshCartDisplay();
         } catch (RuntimeException dbEx) {
-            JOptionPane.showMessageDialog(this, "Ошибка обновления количества: " + dbEx.getMessage(), "Ошибка базы данных", JOptionPane.ERROR_MESSAGE);
+            notificationManager.show("Ошибка обновления количества: " + dbEx.getMessage(), NotificationManager.NotificationType.ERROR);
             refreshCartDisplay(); 
         }
     }
@@ -199,8 +202,9 @@ public class CartPanel extends JPanel {
         try {
             cartService.removeCartItem(cartItemId);
             refreshCartDisplay();
+            notificationManager.show("Товар удален из корзины.", NotificationManager.NotificationType.INFO);
         } catch (RuntimeException e) {
-             JOptionPane.showMessageDialog(this, "Не удалось удалить товар из корзины: " + e.getMessage(), "Ошибка базы данных", JOptionPane.ERROR_MESSAGE);
+             notificationManager.show("Не удалось удалить товар из корзины: " + e.getMessage(), NotificationManager.NotificationType.ERROR);
         }
     }
     
@@ -215,15 +219,16 @@ public class CartPanel extends JPanel {
             try {
                 cartService.clearCart(UserSession.getInstance().getCartId());
                 refreshCartDisplay();
+                notificationManager.show("Корзина была очищена.", NotificationManager.NotificationType.SUCCESS);
             } catch (RuntimeException e) {
-                JOptionPane.showMessageDialog(this, "Не удалось очистить корзину: " + e.getMessage(), "Ошибка базы данных", JOptionPane.ERROR_MESSAGE);
+                notificationManager.show("Не удалось очистить корзину: " + e.getMessage(), NotificationManager.NotificationType.ERROR);
             }
         }
     }
 
     private void proceedToCheckout() {
         if (cartTableModel.getRowCount() == 0) {
-            JOptionPane.showMessageDialog(this, "Ваша корзина пуста.", "Корзина пуста", JOptionPane.INFORMATION_MESSAGE);
+            notificationManager.show("Ваша корзина пуста.", NotificationManager.NotificationType.WARNING);
             return;
         }
         mainWindowRef.switchToDeliveryPanel(); 
@@ -310,8 +315,12 @@ public class CartPanel extends JPanel {
     
     static class SpinnerCellEditor extends DefaultCellEditor {
         JSpinner spinner; JSpinner.DefaultEditor editor; JTextField textField;
-        public SpinnerCellEditor(int min, int max) {
-            super(new JTextField()); spinner = new JSpinner(new SpinnerNumberModel(1, min, max, 1)); editor = (JSpinner.DefaultEditor) spinner.getEditor();
+        private NotificationManager notificationManager;
+
+        public SpinnerCellEditor(int min, int max, NotificationManager manager) {
+            super(new JTextField());
+            this.notificationManager = manager;
+            spinner = new JSpinner(new SpinnerNumberModel(1, min, max, 1)); editor = (JSpinner.DefaultEditor) spinner.getEditor();
             textField = editor.getTextField(); textField.setForeground(MainWindow.TEXT_PRIMARY); textField.setBackground(MainWindow.PANEL_BACKGROUND);
             textField.setBorder(BorderFactory.createLineBorder(MainWindow.ACCENT_COLOR, 1)); textField.setFont(MainWindow.DEFAULT_FONT);
             textField.setHorizontalAlignment(JTextField.CENTER); spinner.setBorder(BorderFactory.createEmptyBorder(1,1,1,1));
@@ -323,7 +332,12 @@ public class CartPanel extends JPanel {
         @Override public Object getCellEditorValue() { return spinner.getValue(); }
         @Override public boolean stopCellEditing() {
             try { editor.commitEdit(); } catch (java.text.ParseException e) {
-                JOptionPane.showMessageDialog(null, "Неверное значение: " + textField.getText(), "Ошибка", JOptionPane.ERROR_MESSAGE); return false;
+                if (notificationManager != null) {
+                    notificationManager.show("Неверное значение: " + textField.getText(), NotificationManager.NotificationType.ERROR);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Неверное значение: " + textField.getText(), "Ошибка", JOptionPane.ERROR_MESSAGE);
+                }
+                return false;
             }
             return super.stopCellEditing();
         }
