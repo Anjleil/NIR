@@ -87,7 +87,7 @@ public class MapViewer {
                     if (mission.getPathPoints() != null && !mission.getPathPoints().isEmpty()) {
                         List<GeoPosition> route = mission.getPathPoints();
 
-                        RoutePainter routePainter = new RoutePainter(route);
+                        RoutePainter routePainter = new RoutePainter(route, mission.getCurrentDronePosition(), mission.getCurrentSegmentTargetIndex());
                         dynamicPainters.add(routePainter);
 
                         if (!route.isEmpty()) {
