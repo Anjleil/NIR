@@ -83,19 +83,19 @@ public class MapViewer {
                 if (mission.isAssigned() && mission.getCurrentDronePosition() != null) {
                     WaypointPainter<MyWaypoint> dronePainter = setDronePainter(mission.getCurrentDronePosition(), mission.getDroneId(), mission.isAssigned());
                     dynamicPainters.add(dronePainter);
-                }
 
-                if (mission.isAssigned() && mission.getPathPoints() != null && !mission.getPathPoints().isEmpty()) {
-                    List<GeoPosition> route = mission.getPathPoints();
-                    
-                    RoutePainter routePainter = new RoutePainter(route);
-                    dynamicPainters.add(routePainter);
+                    if (mission.getPathPoints() != null && !mission.getPathPoints().isEmpty()) {
+                        List<GeoPosition> route = mission.getPathPoints();
 
-                    if (!route.isEmpty()) {
-                        WaypointPainter<MyWaypoint> destinationPainter = setDestinationPainter(route.get(route.size() - 1));
-                        dynamicPainters.add(destinationPainter);
+                        RoutePainter routePainter = new RoutePainter(route);
+                        dynamicPainters.add(routePainter);
+
+                        if (!route.isEmpty()) {
+                            WaypointPainter<MyWaypoint> destinationPainter = setDestinationPainter(route.get(route.size() - 1));
+                            dynamicPainters.add(destinationPainter);
+                        }
                     }
-                } 
+                }
             }
         }
         
@@ -112,7 +112,7 @@ public class MapViewer {
         warehouseWaypoints.add(new MyWaypoint(name, Color.DARK_GRAY, position));
         WaypointPainter<MyWaypoint> warehousePainter = new WaypointPainter<>();
         warehousePainter.setWaypoints(warehouseWaypoints);
-        warehousePainter.setRenderer(new PointRenderer("/warehouse.png"));
+        warehousePainter.setRenderer(new PointRenderer("/images/warehouse.png"));
         return warehousePainter;
     }
 
@@ -123,7 +123,7 @@ public class MapViewer {
         ));
         WaypointPainter<MyWaypoint> dronePainter = new WaypointPainter<>();
         dronePainter.setWaypoints(drones);
-        dronePainter.setRenderer(new PointRenderer("/project/NIR/Utils/drones.png"));
+        dronePainter.setRenderer(new PointRenderer("/images/drones.png"));
         return dronePainter;
     }
 
@@ -133,7 +133,7 @@ public class MapViewer {
         ));
         WaypointPainter<MyWaypoint> destinationPainter = new WaypointPainter<>();
         destinationPainter.setWaypoints(destination);
-        destinationPainter.setRenderer(new PointRenderer("/home_black.png"));
+        destinationPainter.setRenderer(new PointRenderer("/images/home_black.png"));
         return destinationPainter;
     }
 

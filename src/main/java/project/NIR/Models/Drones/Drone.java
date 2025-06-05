@@ -94,6 +94,13 @@ public abstract class Drone {
         }
     }
 
+    private void handleServerData(ServerData serverData) {
+        if (serverData.getAssignedPath() != null && !serverData.getAssignedPath().isEmpty()) {
+            System.out.println("Drone " + getId() + " received new path assignment from server.");
+            setAssignedPath(serverData.getAssignedPath());
+        }
+    }
+
     @SneakyThrows
     public void connectToServer(String host, int port) {
         System.out.println("Drone " + id + ": Attempting socket connection to " + host + ":" + port);
@@ -107,7 +114,13 @@ public abstract class Drone {
             
             System.out.println("Drone " + id + ": Connected. Sending initial state.");
             sendMessage(); // Send initial state (pos, segmentIndex=0)
-            System.out.println("Drone " + id + ": Initial state sent. Starting reader and movement threads.");
+
+            System.out.println("Drone " + id + ": Waiting for initial server command...");
+            ServerData initialServerData = (ServerData) getIn().readObject();
+            System.out.println("Drone " + id + " received initial command from server: " + initialServerData.toString());
+            handleServerData(initialServerData);
+
+            System.out.println("Drone " + id + ": Initial command processed. Starting reader and movement threads.");
 
             // Thread for continuously reading from server
             Thread serverReadThread = new Thread(() -> {
@@ -115,12 +128,7 @@ public abstract class Drone {
                     while (getDroneSocket() != null && !getDroneSocket().isClosed() && getIn() != null) {
                         ServerData serverData = (ServerData) getIn().readObject();
                         System.out.println("Drone " + getId() + " received from server: " + serverData.toString());
-                        if (serverData.getAssignedPath() != null && !serverData.getAssignedPath().isEmpty()) {
-                            System.out.println("Drone " + getId() + " received new path assignment from server.");
-                            setAssignedPath(serverData.getAssignedPath());
-                            // Optionally, send an immediate acknowledgment or updated state if needed.
-                            // For now, the regular timed sendMessage will cover it.
-                        }
+                        handleServerData(serverData);
                     }
                 } catch (IOException e) {
                     if (!getDroneSocket().isClosed()) {
